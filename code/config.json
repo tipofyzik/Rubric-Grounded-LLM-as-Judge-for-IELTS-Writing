@@ -1,0 +1,22 @@
+{
+    "DatasetsPaths": {
+        "hugging_face_train_dataset_path": "./datasets/HuggingFace dataset/hugging_face_train.csv",
+        "hugging_face_test_dataset_path": "./datasets/HuggingFace dataset/hugging_face_test.csv",
+        "kaggle_dataset_path": "./datasets/Kaggle dataset/kaggle_dataset.csv",
+        "transformed_hugging_face_dataset_path": "./datasets/transformed_hugging_face_dataset.csv",
+        "transformed_kaggle_dataset_path": "./datasets/transformed_kaggle_dataset.csv"
+    },
+    "StageSwitch": {
+        "transform_datasets": 0,
+        "analyze_data": 0,
+        "train_custom_regressor": 0,
+        "fine_tune_llm": 0,
+        "get_llm_predictions": 0,
+        "PANDA_evaluation": 0,
+        "aggregate_results": 0,
+        "evaluate_llm": 1
+    },
+    "Results": {
+        "path_to_ordinal_regression": "./results/ordinal_regression"
+    }
+}
