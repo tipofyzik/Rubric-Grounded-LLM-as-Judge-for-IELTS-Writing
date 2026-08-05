@@ -321,3 +321,215 @@ Evaluated configurations across non-fine-tuned and fine-tuned model variants:
 - **Statistical Reliability**: Reported metrics are averaged over all 5 runs, complete with standard deviation ($\pm \sigma$) bounds.
 - **Inference Parameters**: `max_new_tokens = 200`, `temperature = 0.2`, `do_sample = True`.
 - **Insight Selection**: For PANDA configurations, only the top relevant insight (`top_k = 1`) per essay was retrieved via cosine similarity vector search.
+
+
+# 4. Results & Performance Analysis
+
+This section presents a comprehensive evaluation of the Automated Essay Scoring (AES) systems developed in this research, focusing on **Section 4: Results** from the thesis. The investigation covers three main evaluation phases:
+1. **AES RoBERTa Expert Model**: Performance and calibration of the multi-task ordinal regression baseline.
+2. **Non-Fine-Tuned Small Language Models (SLMs)**: Comparative assessment of zero-shot, rubric-grounded (LLM-as-Judge), preference adaptation (PANDA), and preliminary score integrations across six prompting strategies.
+3. **Fine-Tuned Small Language Models (SLMs)**: Analysis of instruction-tuned SLMs using Low-Rank Adaptation (LoRA) and their behavior under varied prompt guidance.
+
+---
+
+## 4.1. AES RoBERTa Expert Model
+
+The baseline expert evaluator is a **RoBERTa-base** model fine-tuned using a **multi-task ordinal regression** loss function (Binary Cross-Entropy with Logits Loss across $K-1$ ordinal thresholds). The model predicts four independent IELTS criteria: Task Achievement (TA), Coherence and Cohesion (CC), Lexical Resource (LR), and Grammatical Range and Accuracy (GRA).
+
+### Training & Calibration Dynamics
+- **Loss Convergence**: As shown in the training loss trajectory, the loss curve flattens significantly after epoch 15, reaching optimal stability around epoch 20.
+- **Calibration Profile**: The model exhibits near-perfect calibration within the middle band score range (4.0 to 6.0). However, it demonstrates standard ordinal boundary limitations: slight overestimation for lower scores (< 4.0) and underestimation for high-tier essays (> 7.0).
+<table style="width:100%; border-collapse:collapse;">
+  <tr>
+    <td style="width:50%; text-align:center;">
+      <img width="1800" height="1200" alt="loss_curve" src="https://github.com/user-attachments/assets/3d8d1558-f582-441e-92f4-44dd2e2917d0" />
+    </td>
+    <td style="width:50%; text-align:center;">
+      <img width="1800" height="1800" alt="calibration_all" src="https://github.com/user-attachments/assets/3b7c7274-eff4-4c5a-80cf-6420f4be8566" />
+    </td>
+  </tr>
+</table>
+
+### Quantitative Performance Metrics
+
+| Criterion | QWK | MAE | RMSE | Adjacent Accuracy (±0.5) | Pearson's $r$ | Spearman's $
+ho$ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Task Achievement (TA)** | 0.661 | 0.812 | 1.149 | 0.594 | 0.706 | 0.685 |
+| **Coherence & Cohesion (CC)** | 0.661 | 0.952 | 1.298 | 0.492 | 0.691 | 0.665 |
+| **Lexical Resource (LR)** | 0.650 | 0.850 | 1.203 | 0.548 | 0.681 | 0.662 |
+| **Grammatical Range & Accuracy (GRA)** | 0.659 | 0.856 | 1.197 | 0.531 | 0.694 | 0.679 |
+
+#### Key Takeaways:
+- **Agreement**: Quadratic Weighted Kappa (QWK) is highly consistent across all criteria, ranging from **0.650 to 0.661**.
+- **Error Distribution**: The lowest Mean Absolute Error (MAE) is achieved for Task Achievement (**0.812**), while Coherence and Cohesion presents higher error (**0.952**), reflecting the inherent subjective complexity of evaluating textual flow and logical transitions.
+- **Adjacent Accuracy**: Over **72.8% – 78.3%** of all expert model predictions lie within $\pm0.5$ band score points of human ground-truth annotations.
+
+---
+
+## 4.2. Non-Fine-Tuned Small Language Models
+
+Four instruction-tuned SLMs were evaluated across six distinct prompting strategies ($p_1$ to $p_6$) over **5 independent evaluation runs** (temperature = 0.2) to measure predictive accuracy, reliability, and variance:
+- **Models Evaluated**: `Qwen2-1.5B-Instruct`, `Qwen2.5-1.5B-Instruct`, `Llama-3.2-3B-Instruct`, `Mistral-7B-Instruct-v0.2`.
+- **Prompt Configurations**:
+  - **$p_1$**: Zero-shot baseline
+  - **$p_2$**: Rubric-based (LLM-as-Judge using condensed IELTS descriptors)
+  - **$p_3$**: PANDA-based (Preference Adaptation using top-1 retrieved expert insights)
+  - **$p_4$**: Rubric + PANDA-based
+  - **$p_5$**: PANDA-based + Preliminary scores (from RoBERTa expert model)
+  - **$p_6$**: Rubric + PANDA-based + Preliminary scores
+
+### 4.2.1. Plot & Metric Overview
+Evaluations are structured across four core evaluation criteria, measuring standard deviations ($\pm\sigma$) across 5 repeated inferences to verify stochastic stability.
+
+### 4.2.2. Scoring Reliability: QWK & RMSE
+#### Quadratic Weighted Kappa (QWK) Trends
+1. **Prompt Expansion Benefit**: All non-fine-tuned SLMs exhibit a clear upward trajectory in scoring agreement as structured domain guidance is added compared to zero-shot baseline ($p_1$).
+2. **Dominance of $p_5$ (PANDA + Preliminary Scores)**: The combination of retrieved preference insights with preliminary expert scores ($p_5$) achieves peak QWK performance across models.
+3. **Model Leaderboard**:
+   - **`Llama-3.2-3B-Instruct`** emerged as the **best non-fine-tuned model**, outperforming all other SLMs across 5 out of 6 prompting configurations.
+   - **`Mistral-7B-Instruct-v0.2`** followed closely, showing significant performance spikes under $p_5$.
+   - **`Qwen2-1.5B` & `Qwen2.5-1.5B`** displayed lower base performance but benefited proportionally from structured hints.
+4. **The "Rubric Paradox" ($p_2, p_4, p_6$)**:
+   - Applying rubric criteria alone ($p_2$) slightly improves zero-shot scores.
+   - However, **mixing rubrics with PANDA or preliminary scores ($p_4, p_6$) often leads to performance degradation** in larger SLMs (`Llama-3.2-3B` and `Mistral-7B`). The added prompt length and cognitive load of dense rubric text dilute the model's focus on retrieved insights and pre-evaluated scores.
+
+
+
+#### Root Mean Square Error (RMSE) Insights
+- **Error Reduction**: RMSE gradually declines across all models as domain-specific context increases ($p_1 	o p_5$).
+- **Inference Stability**: Low standard deviation values across 5 runs confirm that setting temperature to 0.2 provides high stability and repeatability.
+
+### 4.2.3. Distribution, Alignment, and Calibration
+
+#### Adjacent Accuracy ($\pm0.5$ Band Points)
+- **`Qwen` Sensitivity Breakdown**: Under rubric-only prompting ($p_2$), both `Qwen2-1.5B` and `Qwen2.5-1.5B` experience a sharp drop in adjacent accuracy to near-zero levels due to extreme score outliers.
+- **Recovery via $p_5$**: Injecting PANDA insights and preliminary scores ($p_5$) completely mitigates this instability, elevating adjacent accuracy to **40% – 50%** across criteria.
+- **`Llama-3.2-3B` & `Mistral-7B`**: Demonstrate smooth performance curves, maintaining high adjacent accuracy without severe outlier degradation under rubric prompts.
+
+#### Correlation Coefficients & Calibration Dynamics
+- **Linear & Monotonic Preserving**:
+  - Zero-shot ($p_1$) and Rubric ($p_2$) prompts yield near-zero or weak Pearson ($r$) and Spearman ($
+ho$) correlation values, indicating failure to preserve ranking order across essays.
+  - Integration of PANDA insights ($p_3$) and preliminary scores ($p_5$) dramatically boosts Spearman rank correlation from **~0 to 0.40 – 0.60**, establishing a strong positive monotonic relationship.
+- **Calibration Curves**:
+  - `Qwen2.5-1.5B` visualizes the dramatic calibration shift: $p_1$ and $p_2$ curves severely deviate from the ideal diagonal line, whereas $p_5$ and $p_6$ align closely along the perfect calibration axis.
+
+---
+
+## 4.3. Fine-Tuned Small Language Models
+
+Supervised Fine-Tuning (SFT) via **LoRA** (targeting `q_proj, k_proj, v_proj, o_proj`) was conducted for 1 epoch on the standardized zero-shot prompt template. Due to instruction alignment during fine-tuning, models outputted strict JSON scores directly, restricting insight extraction. Thus, 4 prompt configurations ($p_1$ to $p_4$) were evaluated at inference time.
+
+### 4.3.1. Impact of Fine-Tuning: QWK & RMSE
+
+#### The Breakthrough: `Mistral-7B-Instruct-v0.2` (Fine-Tuned)
+- **State-of-the-Art Results**: Fine-tuned `Mistral-7B` achieved **the single best performance across all evaluated systems** (both fine-tuned and non-fine-tuned), setting top QWK scores across Task Achievement, Coherence & Cohesion, Lexical Resource, and Grammatical Range & Accuracy.
+- **Robustness**: Maintain high QWK and low RMSE regardless of the prompt variations applied during inference.
+
+#### The Failure Mode: `Llama-3.2-3B-Instruct` Collapse
+- **Performance Collapse**: Fine-tuned `Llama-3.2-3B` experienced a severe drop in QWK to **near 0.0**, rendering its predictions equivalent to random guessing.
+- **Cause**: Overfitting to the single-epoch zero-shot JSON format combined with dataset score distribution bias.
+
+#### `Qwen` Series Dynamics
+- **`Qwen2-1.5B` (Fine-Tuned)**: Exhibited consistent performance improvements across prompt configurations ($p_1 	o p_4$).
+- **`Qwen2.5-1.5B` (Fine-Tuned)**: Suffered performance degradation and RMSE spikes on rubric-based prompts ($p_2, p_3$), but recovered significantly when preliminary expert scores were provided ($p_4$).
+
+### 4.3.2. Error Analysis & Regression to the Mean
+
+```
+Llama-3.2-3B Fine-Tuned Calibration Failure Mode:
+True Bands:   [ 4.0 , 4.5 , 5.0 , 5.5 , 6.0 , 6.5 , 7.0 , 7.5 , 8.0 ]
+Predicted:    [ 5.5 , 5.5 , 6.0 , 6.0 , 6.0 , 6.0 , 6.0 , 6.0 , 6.0 ]  <-- Mean Regression Output
+```
+
+- **Regression to the Mean**: Calibration plots for fine-tuned `Llama-3.2-3B` reveal that the model systematically assigns score values of **5.5 or 6.0** to virtually all essays, regardless of actual essay quality or input prompt.
+  - **Root Cause**: The training corpus has a heavy score concentration in the 6.0–7.5 range. Fine-tuning caused `Llama-3.2-3B` to collapse its output variance to the dataset mode/mean.
+- **Calibration Benchmark**:
+  - `Mistral-7B-Instruct-v0.2 (Fine-Tuned)` demonstrates an exceptionally tight calibration curve along the $y=x$ ideal reference line, leading all models in Pearson correlation ($r$) and Spearman correlation ($
+ho$).
+
+---
+
+##  summary Comparison of Evaluated Systems
+| Model Architecture | Fine-Tuned? | Top Prompt Configuration | Peak QWK Range | Key Strengths / Behavior Notes |
+| :--- | :---: | :---: | :---: | :--- |
+| **RoBERTa-base Expert** | Yes (Encoder) | N/A (Multi-task Ordinal) | 0.650 – 0.661 | High consistency; ideal in 4.0–6.0 band range; provides preliminary scores. |
+| **Llama-3.2-3B-Instruct** | **No** | $p_5$ (PANDA + Prelim) | **0.55 – 0.68** | **Best non-fine-tuned model**. Strong context adaptation without fine-tuning. |
+| **Mistral-7B-Instruct-v0.2** | **No** | $p_5$ (PANDA + Prelim) | **0.50 – 0.65** | Highly resilient to prompt complexity; substantial gains with expert hints. |
+| **Qwen2.5-1.5B-Instruct** | **No** | $p_5$ (PANDA + Prelim) | 0.35 – 0.50 | High sensitivity to rubrics ($p_2$ drop), but recovers well under $p_5$. |
+| **Qwen2-1.5B-Instruct** | **No** | $p_5$ (PANDA + Prelim) | 0.30 – 0.45 | Baseline performer; needs external preference/score guidance. |
+| **Mistral-7B-Instruct-v0.2** | **YES** | $p_4$ / $p_1$ | **0.68 – 0.78** | **Overall Best System (SOTA)**. Exceptional calibration & agreement. |
+| **Llama-3.2-3B-Instruct** | **YES** | N/A | ~0.00 | **Mode Collapse / Overfitting**. Constant outputs around 5.5–6.0 band score. |
+| **Qwen2.5-1.5B-Instruct** | **YES** | $p_4$ | 0.40 – 0.55 | Sensitive to rubric prompts; strong recovery with preliminary score prompt. |
+| **Qwen2-1.5B-Instruct** | **YES** | $p_4$ | 0.45 – 0.58 | Steady improvement with fine-tuning + preliminary score guidance. |
+
+
+# 5. Limitations and Possible Improvements
+
+This section details the primary methodological, computational, and data-related constraints encountered during the research, alongside concrete avenues for future exploration and system enhancements.
+
+---
+
+## 5.1 Dataset Limitations
+
+* **Score Imbalance & Bias:** The evaluation corpus exhibits a strong class imbalance, with score distributions heavily concentrated within the 6.0–7.5 band range across all four IELTS criteria.
+* **Range Distortion in Predictions:** Due to underrepresented tails (extreme low and high scores), both the fine-tuned AES expert model and the Small Language Models (SLMs) display systematic calibration bias:
+  * Essays with ground-truth band scores below 5.5–6.0 are consistently **overestimated**.
+  * Essays with ground-truth band scores of 7.0–7.5 and above are systematically **underestimated**.
+* **Mitigation Strategies:**
+  * Application of targeted dataset balancing techniques to reduce distribution skew.
+  * Integration of data augmentation methods (e.g., automated paraphrasing for score boundary augmentation).
+  * Strategic sampling via few-shot prompting setups to provide explicitly balanced contextual anchors.
+
+---
+
+## 5.2 Language Model Choice
+
+* **Dimensionality Confounding:** The experimental matrix evaluated models spanning different parameter sizes (1.5B to 7B parameters) across multiple prompting configurations. As a result, performance variations stem from both scale differences and underlying architectural nuances.
+* **Controlled Evaluation Setup:** 
+  * Future iterations should fix one operational dimension—such as evaluating exclusively 7B-parameter architectures (e.g., Llama-3-7B, Qwen-2.5-7B, Mistral-7B)—to isolate the direct impact of prompting strategies and attention mechanisms from raw parameter scaling.
+
+---
+
+## 5.3 Fine-Tuning Limitations
+
+* **Hyperparameter & Sensitivity Constraints:** Instruction tuning outcomes were tightly coupled to optimization dynamics, learning rates, and adapter target layer configurations.
+* **Overfitting Risks:** Training on a domain-specific dataset lacking wide stylistic diversity introduced severe risks of overfitting, causing fine-tuned models (such as Llama-3.2-3B) to converge toward mean predictions (assigning near-constant 5.5–6.0 band scores regardless of essay quality).
+* **Catastrophic Forgetting:** Fine-tuning on restricted JSON output targets led models to lose general instruction-following capabilities, making them incapable of secondary tasks like retrieving or formatting raw PANDA insights.
+* **Remediation Techniques:**
+  * Implementation of stricter regularization schedules, early stopping criteria, and learning rate warmups.
+  * Preservation of foundational capabilities via Parameter-Efficient Fine-Tuning (PEFT/LoRA) with constrained target projection adjustments (`q_proj`, `v_proj`).
+
+---
+
+## 5.4 Inference Process Limitations
+
+* **High Computational Cost & Latency:** Multi-run evaluation setups (5 execution passes per configuration to guarantee statistical confidence) required significant processing budgets.
+  * Single evaluation passes per prompt required 40 to 60 minutes for smaller models.
+  * Full 5-run evaluation cycles for complex prompt mixtures extended up to **20 hours per model configuration**.
+* **Hardware & Platform Constraints:**
+  * Operational bottlenecks on GPU platforms necessitated aggressive token constraints (`max_new_tokens=200`), batch processing, and fixed inference parameters (`temperature=0.2`).
+  * Workflow establishment challenges on cloud infrastructure constrained execution flexibility.
+
+---
+
+## 5.5 Possible Improvements and Further Exploration
+
+To advance rubric-grounded SLM evaluation systems, several key technical enhancements are proposed:
+
+1. **Balanced IELTS Corpus Construction:**
+   * Curation of an expanded, uniformly distributed IELTS Task 2 dataset featuring standardized, criterion-level annotations across the full 0–9 band continuum.
+
+2. **Prompt Structural Permutations:**
+   * Systematic ablation studies analyzing the positioning of contextual elements (e.g., placing PANDA insights at the end vs. beginning of the context window, reversing prompt components).
+
+3. **Knowledge Distillation (Teacher-Student Architecture):**
+   * Distilling scoring and reasoning heuristics from frontier Large Language Models (e.g., GPT-4o, Claude 3.5 Sonnet) into compact 1.5B–3B SLMs to preserve high-level reasoning capabilities at low computational overhead.
+
+4. **Hybrid Neuro-Symbolic Scoring (Linguistic Feature Integration):**
+   * Combining transformer contextual representations with explicit surface-level linguistic features (syntactic complexity measures, lexical diversity indices, cohesion markers, and readability scores) to stabilize scoring across out-of-domain essays.
+
+5. **Retrieval-Augmented Generation (RAG) Framework:**
+   * Deploying a dynamic vector database to retrieve target band descriptors, exemplary anchor essays, and criterion-specific PANDA insights on demand, thereby conserving SLM context window capacity and eliminating context truncation issues.
+
