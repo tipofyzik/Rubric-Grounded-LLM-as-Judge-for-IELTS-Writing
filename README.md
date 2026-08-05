@@ -352,8 +352,7 @@ The baseline expert evaluator is a **RoBERTa-base** model fine-tuned using a **m
 
 ### Quantitative Performance Metrics
 
-| Criterion | QWK | MAE | RMSE | Adjacent Accuracy (±0.5) | Pearson's $r$ | Spearman's $
-ho$ |
+| Criterion | QWK | MAE | RMSE | Adjacent Accuracy (±0.5) | Pearson's $r$ | Spearman's $\rho$ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Task Achievement (TA)** | 0.661 | 0.812 | 1.149 | 0.594 | 0.706 | 0.685 |
 | **Coherence & Cohesion (CC)** | 0.661 | 0.952 | 1.298 | 0.492 | 0.691 | 0.665 |
