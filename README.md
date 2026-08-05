@@ -304,12 +304,12 @@ Evaluated configurations across non-fine-tuned and fine-tuned model variants:
 
 | Configuration Code | Prompt Strategy Name | Non Fine-Tuned SLMs | Fine-Tuned SLMs |
 | :---: | :--- | :---: | :---: |
-| **`p1`** | **Zero-shot** | Baseline | Evaluated |
-| **`p2`** | **Rubric-based** | Evaluated | Evaluated |
-| **`p3`** | **PANDA-based** | Evaluated | N/A* |
-| **`p4`** | **Rubric + PANDA-based** | Evaluated | Evaluated |
-| **`p5`** | **PANDA-based + Preliminary Scores** | Evaluated | Evaluated |
-| **`p6`** | **Rubric + PANDA-based + Preliminary Scores** | Evaluated | N/A* |
+| **`p1`** | **Zero-shot** | Baseline | ✓ |
+| **`p2`** | **Rubric-based** | ✓ | ✓ |
+| **`p3`** | **PANDA-based** | ✓ | N/A* |
+| **`p4`** | **Rubric + PANDA-based** | ✓ | ✓ |
+| **`p5`** | **PANDA-based + Preliminary Scores** | ✓ | ✓ |
+| **`p6`** | **Rubric + PANDA-based + Preliminary Scores** | ✓ | N/A* |
 
 *\*Note: Fine-tuned SLMs strictly produce structured JSON band outputs post-SFT, rendering single-step insight generation (`p3`) and multi-prompt setups (`p6`) non-applicable.*
 
