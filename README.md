@@ -50,7 +50,19 @@ We benchmarked 6 distinct prompting configurations across non-fine-tuned and fin
 
 ## 📁 Repository Structure
 ```text
-
+├── code/
+│   ├── DatasetTransformer.py    # Preprocessing and dataset transformation utilities
+│   ├── LLMAggregator.py         # Aggregates evaluation results and metrics across models
+│   ├── LLMEvaluator.py          # Core evaluation pipeline for LLM-as-a-Judge assessment
+│   ├── LLMFineTuner.py          # Fine-tuning module for SLMs using LoRA (PEFT)
+│   ├── LLMResponseObtainer.py   # Handles response generation from LLMs/SLMs
+│   ├── OrdinalRegression.py     # RoBERTa-base multi-task ordinal regression expert model
+│   ├── PANDA.py                 # Preference Adaptation & Range Insight extraction framework
+│   ├── RawDataAnalyzer.py       # Data analysis and summary statistics for raw dataset
+│   ├── RegressorEvaluator.py    # Evaluation metrics for the RoBERTa regressor expert
+│   ├── config.json              # Configuration file for paths, models, and hyperparameters
+│   ├── main.py                  # Main execution pipeline entry point
+│   └── prompt image.py          # Prompt generation and template formatting utilities
 ```
 
 ---
