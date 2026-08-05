@@ -2,7 +2,7 @@
 
 This repository contains the official codebase, dataset preprocessing utilities, and evaluation scripts for the Bachelor Thesis project: **"Rubric-Grounded LLM-as-Judge for IELTS Writing: Reliability, Calibration, and Preference Adaptation Using an Automated Essay Scoring Expert Model"**.
 
-> 📄 **Read the full thesis here:** [`docs/Bachelor_Thesis.pdf`](docs/Bachelor_Thesis.pdf)
+> 📄 **Read the full thesis here:** [`Thesis`](docs/Bachelor_Thesis.pdf)
 
 ## 📌 Abstract & Overview
 Automated Essay Scoring (AES) for standardized examinations like IELTS requires multi-criteria assessment strictly grounded in evaluation rubrics. This project investigates a hybrid evaluation framework using **Small Language Models (SLMs)** as judges. 
