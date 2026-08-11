@@ -37,8 +37,8 @@ We benchmarked 6 distinct prompting configurations across non-fine-tuned and fin
 
 ## 📊 Key Results & Findings
 * **Top Performing Prompt:** The PANDA-based approach combined with preliminary expert scores (`p5`) yielded the highest scoring agreement and calibration across models.
-* **Non-Fine-Tuned Models:** `Llama-3.2-3B-Instruct` demonstrated superior zero-shot/prompt-adapted evaluation performance across 5 out of 6 prompt strategies.
-* **Fine-Tuned Models:** `Mistral-7B-Instruct-v0.2` fine-tuned with LoRA achieved the highest correlation and best alignment with perfect calibration lines.
+* **Non-Fine-Tuned Models:** `Llama-3.2-3B-Instruct` demonstrated superior prompt-adapted evaluation performance across 5 out of 6 prompt strategies.
+* **Fine-Tuned Models:** `Mistral-7B-Instruct-v0.2` fine-tuned with LoRA achieved the highest correlation and best alignment with perfect calibration lines among other fine-tuned models.
 * **AES RoBERTa Expert:** Provided reliable baseline estimates ($QWK \approx 0.650 - 0.661$) used to guide SLM evaluation.
 ---
 
