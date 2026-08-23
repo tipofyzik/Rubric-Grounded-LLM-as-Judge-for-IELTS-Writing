@@ -43,7 +43,7 @@ We benchmarked 6 distinct prompting configurations across non-fine-tuned and fin
 
 <img width="8980" height="4974" alt="mean_qwk_across_runs" src="https://github.com/user-attachments/assets/987d47d5-5e3f-45e5-9c46-bbbe89a49f27" />  
 
-* **Fine-Tuned Models:** `Mistral-7B-Instruct-v0.2` fine-tuned with LoRA achieved the highest correlation and best alignment with perfect calibration lines among other fine-tuned models.
+* **Fine-Tuned Models:** `Mistral-7B-Instruct-v0.2` fine-tuned with LoRA achieved the highest performance among other fine-tuned models.
 
 <img width="9601" height="4974" alt="mean_qwk_across_runs" src="https://github.com/user-attachments/assets/ef93860f-7c48-4660-b5fd-670e1dc009ed" />  
 
