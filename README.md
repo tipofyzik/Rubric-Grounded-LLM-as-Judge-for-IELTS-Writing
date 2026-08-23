@@ -71,8 +71,7 @@ We benchmarked 6 distinct prompting configurations across non-fine-tuned and fin
 │   ├── RawDataAnalyzer.py       # Data analysis and summary statistics for raw dataset
 │   ├── RegressorEvaluator.py    # Evaluation metrics for the RoBERTa regressor expert
 │   ├── config.json              # Configuration file for paths, models, and hyperparameters
-│   ├── main.py                  # Main execution pipeline entry point
-│   └── prompt image.py          # Prompt generation and template formatting utilities
+│   └── main.py                  # Main execution pipeline entry point
 ```
 
 ---
