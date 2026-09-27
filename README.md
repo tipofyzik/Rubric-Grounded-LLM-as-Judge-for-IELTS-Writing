@@ -1,6 +1,6 @@
 # Rubric-Grounded LLM-as-Judge for IELTS Writing Evaluation
 
-This repository contains the official codebase, dataset preprocessing utilities, and evaluation scripts for the Bachelor Thesis project: **"Rubric-Grounded LLM-as-Judge for IELTS Writing: Reliability, Calibration, and Preference Adaptation Using an Automated Essay Scoring Expert Model"**.
+This repository contains the official codebase, dataset preprocessing utilities, and evaluation scripts for my Bachelor Thesis project: **"Rubric-Grounded LLM-as-Judge for IELTS Writing: Reliability, Calibration, and Preference Adaptation Using an Automated Essay Scoring Expert Model"**.
 
 > 📄 <a href="https://docs.google.com/viewer?url=https://github.com/user-attachments/files/31278259/Rubric-Grounded.LLM-as-Judge.for.IELTS.Writing.pdf" target="_blank">
 **Read the full thesis**
