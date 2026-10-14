@@ -1,18 +1,18 @@
+# Relative paths are resolved from the project root (src).
 datasets:
-  hugging_face_train: datasets/HuggingFace dataset/hugging_face_train.csv
-  hugging_face_test: datasets/HuggingFace dataset/hugging_face_test.csv
-  kaggle: datasets/Kaggle dataset/kaggle_dataset.csv
-  transformed_hugging_face: datasets/transformed_hugging_face_dataset.csv
-  transformed_kaggle: datasets/transformed_kaggle_dataset.csv
-  llm_train: datasets/train_llm.csv
-  llm_test: datasets/test_llm.csv
+  hugging_face_train: code/resources/datasets/HuggingFace dataset/hugging_face_train.csv
+  hugging_face_test: code/resources/datasets/HuggingFace dataset/hugging_face_test.csv
+  kaggle: code/resources/datasets/Kaggle dataset/kaggle_dataset.csv
+  transformed_hugging_face: code/resources/datasets/transformed_hugging_face_dataset.csv
+  transformed_kaggle: code/resources/datasets/transformed_kaggle_dataset.csv
+  llm_train: code/resources/datasets/train_llm.csv
+  llm_test: code/resources/datasets/test_llm.csv
 
 external:
-  aes_predictions: "C:/Users/serj/Documents/IU of Applied Sciences. Studying/Bachelor Thesis/Best regressor/roberta-base-results/results/predictions_table.csv"
+  aes_predictions: code/resources/AES predictions/predictions_table.csv
 
 resources:
   ielts_criteria: code/resources/ielts_criteria.yaml
-  prompt_font: /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
 
 results:
   ordinal_regression: results/ordinal_regression
@@ -23,29 +23,29 @@ results:
   panda_insights: results/panda_insights.csv
   panda_evaluations: results/panda_evaluation_results.json
   llm_aggregated: results/llm_aggregated.csv
-  llm_evaluation: LLM evaluation
-  llm_evaluation_results: LLM evaluation/results
-  llm_non_fine_tuned_results: LLM evaluation/results/non_fine_tuned
-  llm_fine_tuned_results: LLM evaluation/results/fine_tuned
+  llm_evaluation: code/resources/LLM evaluation
+  llm_evaluation_results: code/resources/LLM evaluation/results
+  llm_non_fine_tuned_results: code/resources/LLM evaluation/results/non_fine_tuned
+  llm_fine_tuned_results: code/resources/LLM evaluation/results/fine_tuned
   result_plots: result_plots
-  prompt_image: ielts_prompt.png
-  aes_architecture_image: aes_model.webp
+  prompt_image: output/ielts_prompt.png
+  aes_architecture_image: output/aes_model.webp
   non_fine_tuned_plots: result_plots/metrics/non_fine_tuned
   fine_tuned_plots: result_plots/metrics/fine_tuned
 
 evaluation_sources:
   fine_tuned:
-    Raw models: LLM evaluation/Fine-tuned models/Raw models
-    Raw models + Rubric: LLM evaluation/Fine-tuned models/Raw models + Rubric
-    Raw models + Rubric + PANDA: LLM evaluation/Fine-tuned models/Raw models + Rubric + PANDA
-    Raw models + PANDA + Scores: LLM evaluation/Fine-tuned models/Raw models + PANDA + Scores
+    Raw models: code/resources/LLM evaluation/Fine-tuned models/Raw models
+    Raw models + Rubric: code/resources/LLM evaluation/Fine-tuned models/Raw models + Rubric
+    Raw models + Rubric + PANDA: code/resources/LLM evaluation/Fine-tuned models/Raw models + Rubric + PANDA
+    Raw models + PANDA + Scores: code/resources/LLM evaluation/Fine-tuned models/Raw models + PANDA + Scores
   non_fine_tuned:
-    Raw models: LLM evaluation/Non Fine-tuned models/Raw models
-    Raw models + Rubric: LLM evaluation/Non Fine-tuned models/Raw models + Rubric
-    Raw models + PANDA: LLM evaluation/Non Fine-tuned models/Raw models + PANDA
-    Raw models + PANDA + Scores: LLM evaluation/Non Fine-tuned models/Raw models + PANDA + Scores
-    Raw models + Rubric + PANDA: LLM evaluation/Non Fine-tuned models/Raw models + Rubric + PANDA
-    Raw models + Rubric + PANDA + Scores: LLM evaluation/Non Fine-tuned models/Raw models + Rubric + PANDA + Scores
+    Raw models: code/resources/LLM evaluation/Non Fine-tuned models/Raw models
+    Raw models + Rubric: code/resources/LLM evaluation/Non Fine-tuned models/Raw models + Rubric
+    Raw models + PANDA: code/resources/LLM evaluation/Non Fine-tuned models/Raw models + PANDA
+    Raw models + PANDA + Scores: code/resources/LLM evaluation/Non Fine-tuned models/Raw models + PANDA + Scores
+    Raw models + Rubric + PANDA: code/resources/LLM evaluation/Non Fine-tuned models/Raw models + Rubric + PANDA
+    Raw models + Rubric + PANDA + Scores: code/resources/LLM evaluation/Non Fine-tuned models/Raw models + Rubric + PANDA + Scores
 
 files:
   llm_evaluation_truth: y_test.csv

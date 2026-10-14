@@ -7,10 +7,9 @@ import os
 
 from ..paths import PATHS
 
+model_name = "roberta-base-uncased"
+# model_name = "sentence-transformers/paraphrase-MiniLM-L6-v2"
 
-
-# model_name = "roberta-base-uncased"
-model_name = "sentence-transformers/paraphrase-MiniLM-L6-v2"
 
 # =====================
 # DATASET
@@ -57,14 +56,12 @@ class EssayDataset(Dataset):
             truncation=True,
             padding="max_length",
             max_length=512,
-            return_tensors="pt"
+            return_tensors="pt",
         )
         item = {k: v.squeeze(0) for k, v in enc.items()}
-        item["labels"] = torch.tensor(
-            self.targets[idx],
-            dtype=torch.float
-        )
+        item["labels"] = torch.tensor(self.targets[idx], dtype=torch.float)
         return item
+
 
 # ========================
 # ORDINAL REGRESSION MODEL
@@ -78,15 +75,16 @@ class OrdinalHead(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim // 2, hidden_dim // 4),
             nn.ReLU(),
-            nn.Linear(hidden_dim // 4, num_classes - 1)  # for ordinal regression
+            nn.Linear(hidden_dim // 4, num_classes - 1),  # for ordinal regression
         )
 
     def forward(self, x):
         return self.net(x)
-        
+
+
 class OrdinalRegressionModel(nn.Module):
-    """
-    """
+    """ """
+
     def __init__(self, num_classes: int, num_tasks: int) -> None:
         """
         Initializes the OrdinalRegressionModel.
@@ -103,13 +101,16 @@ class OrdinalRegressionModel(nn.Module):
         self.num_tasks = num_tasks
         self.num_classes = num_classes
 
+        self.heads = nn.ModuleList(
+            [
+                OrdinalHead(hidden_dim=hidden, num_classes=num_classes)
+                for _ in range(num_tasks)
+            ]
+        )
 
-        self.heads = nn.ModuleList([
-            OrdinalHead(hidden_dim=hidden, num_classes=num_classes)
-            for _ in range(num_tasks)
-        ])
-
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, input_ids: torch.Tensor, attention_mask: torch.Tensor
+    ) -> torch.Tensor:
         """
         Performs the forward pass of the model.
 
@@ -120,11 +121,8 @@ class OrdinalRegressionModel(nn.Module):
         Returns:
             torch.Tensor: Logits tensor of shape (batch_size, num_tasks, num_classes - 1).
         """
-        outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask
-        )
-    
+        outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+
         hidden = outputs.last_hidden_state
         mask = attention_mask.unsqueeze(-1)
         hidden = hidden * mask
@@ -132,16 +130,19 @@ class OrdinalRegressionModel(nn.Module):
         logits = [head(cls) for head in self.heads]
         # (batch, tasks, K-1)
         logits = torch.stack(logits, dim=1)
-    
+
         return logits
+
 
 # ==========================
 # ORDINAL REGRESSION WRAPPER
 # ==========================
 class OrdinalRegression:
-    """
-    """
-    def __init__(self, num_classes: int, num_tasks: int, device: torch.device | None = None) -> None:
+    """ """
+
+    def __init__(
+        self, num_classes: int, num_tasks: int, device: torch.device | None = None
+    ) -> None:
         """
         Initializes the OrdinalRegression wrapper.
 
@@ -151,18 +152,24 @@ class OrdinalRegression:
             device (torch.device | None): Device used for training and inference.
                 If None, the device is automatically selected (CUDA if available).
         """
-        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
         self.model = OrdinalRegressionModel(num_classes, num_tasks).to(self.device)
         self.num_classes = num_classes
         self.criterion = nn.BCEWithLogitsLoss()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=2e-5)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=50, eta_min=1e-5)
-    
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, T_max=50, eta_min=1e-5
+        )
+
     # ===================
     # ENCODING & DECODING
     # ===================
     @staticmethod
-    def ordinal_encode(y: list[float], band2idx: dict[float, int], num_classes: int) -> np.ndarray:
+    def ordinal_encode(
+        y: list[float], band2idx: dict[float, int], num_classes: int
+    ) -> np.ndarray:
         """
         Encodes ordinal labels using cumulative ordinal encoding.
 
@@ -196,19 +203,16 @@ class OrdinalRegression:
                 (num_samples, num_tasks, num_classes - 1).
         """
         num_targets = y_df.shape[1]
-    
-        encoded = np.zeros(
-            (len(y_df), num_targets, num_classes - 1),
-            dtype=np.float32
-        )
-    
+
+        encoded = np.zeros((len(y_df), num_targets, num_classes - 1), dtype=np.float32)
+
         for t, col in enumerate(y_df.columns):
             for i, label in enumerate(y_df[col]):
                 idx = band2idx[label]
                 encoded[i, t, :idx] = 1.0
-    
+
         return encoded
-    
+
     @staticmethod
     def ordinal_decode(logits: torch.Tensor, idx2band: dict) -> list:
         """
@@ -240,23 +244,23 @@ class OrdinalRegression:
                 Shape: (num_samples, num_tasks).
         """
         probs = torch.sigmoid(logits)
-    
+
         preds_idx = (probs > 0.5).sum(dim=2).cpu().numpy()
-    
+
         results = []
         for sample in preds_idx:
-            results.append([
-                float(idx2band[int(i)])   # ⭐ ключевая строка
-                for i in sample
-            ])
-    
+            results.append(
+                [float(idx2band[int(i)]) for i in sample]  # ⭐ ключевая строка
+            )
+
         return results
-    
+
     # ========
     # TRAINING
     # ========
-    def fit(self, texts: list[str], y_ord: np.ndarray, 
-            epochs: int = 3, batch_size: int = 8) -> None:
+    def fit(
+        self, texts: list[str], y_ord: np.ndarray, epochs: int = 3, batch_size: int = 8
+    ) -> None:
         """
         Trains the ordinal regression model.
 
@@ -273,7 +277,7 @@ class OrdinalRegression:
         dataset = EssayDataset(texts, y_ord)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.model.train()
-        
+
         self.loss_history = []
         for epoch in range(epochs):
             total_loss = 0
@@ -287,17 +291,18 @@ class OrdinalRegression:
                 loss.backward()
                 self.optimizer.step()
                 total_loss += loss.item()
-                
+
             epoch_loss = total_loss / len(loader)
-            self.loss_history.append(epoch_loss) 
+            self.loss_history.append(epoch_loss)
             self.scheduler.step()
             print(f"Epoch {epoch+1}/{epochs} | Loss: {total_loss/len(loader):.4f}")
 
     # ==========
     # PREDICTION
     # ==========
-    def predict(self, texts: list[str], idx2band: dict, 
-                batch_size: int = 8) -> list[list[float]]:
+    def predict(
+        self, texts: list[str], idx2band: dict, batch_size: int = 8
+    ) -> list[list[float]]:
         """
         Predicts ordinal labels for input texts.
 
@@ -310,7 +315,9 @@ class OrdinalRegression:
             list[list[float]]: Predicted labels for each sample and task.
                 Shape: (num_samples, num_tasks).
         """
-        dataset = EssayDataset(texts, np.zeros((len(texts), self.num_classes - 1), dtype=np.float32))
+        dataset = EssayDataset(
+            texts, np.zeros((len(texts), self.num_classes - 1), dtype=np.float32)
+        )
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()
         preds = []
@@ -322,11 +329,13 @@ class OrdinalRegression:
                 batch_preds = self.ordinal_decode_multi(logits, idx2band)
                 preds.extend(batch_preds)
         return preds
-    
+
     # ==============
     # SAVING RESULTS
     # ==============
-    def save_model_and_tokenizer(self, model_wrapper: "OrdinalRegression", save_dir: str) -> None:
+    def save_model_and_tokenizer(
+        self, model_wrapper: "OrdinalRegression", save_dir: str
+    ) -> None:
         """
         Saves the trained model and tokenizer to disk.
 
@@ -338,34 +347,34 @@ class OrdinalRegression:
             None
         """
         os.makedirs(save_dir, exist_ok=True)
-        
+
         # Saving model weights
         torch.save(
             model_wrapper.model.state_dict(),
             os.path.join(save_dir, PATHS["files"]["ordinal_model"]),
         )
-        
+
         # Saving tokenizer
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         tokenizer.save_pretrained(save_dir)
-        
+
         print(f"Model and tokenizer saved to {save_dir}")
 
     def load_model_and_tokenizer(self, save_dir, num_classes, device=None):
-        """
-        """
+        """ """
         device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model_wrapper = OrdinalRegression(num_classes=num_classes, num_tasks=4, device=device)
-        
+        model_wrapper = OrdinalRegression(
+            num_classes=num_classes, num_tasks=4, device=device
+        )
+
         # Loading weights
         state_dict = torch.load(
             os.path.join(save_dir, PATHS["files"]["ordinal_model"]),
             map_location=device,
         )
         model_wrapper.model.load_state_dict(state_dict)
-        
+
         # Loading tokenizer
         tokenizer = AutoTokenizer.from_pretrained(save_dir)
-        
-        return model_wrapper, tokenizer
 
+        return model_wrapper, tokenizer

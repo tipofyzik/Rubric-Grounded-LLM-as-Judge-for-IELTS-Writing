@@ -5,18 +5,35 @@ import textwrap
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ielts_judge.criteria import CRITERION_IDS, CRITERION_SOURCE_NAMES, format_score_schema
+from ielts_judge.criteria import (
+    CRITERION_IDS,
+    CRITERION_SOURCE_NAMES,
+    format_score_schema,
+)
 from ielts_judge.paths import PATHS
 
+
 def prompt_to_diploma_image(
-    output_path=PATHS["results"]["prompt_image"],
-    width=1600,
-    padding=80,
-    bg_color="#f8f8f5ff",
-    text_color="#1e1e1e",
-    accent_color="#038f6aaf",
-    font_path=PATHS["resources"]["prompt_font"],
-):
+    output_path: str = PATHS["results"]["prompt_image"],
+    width: int = 1600,
+    padding: int = 80,
+    bg_color: str = "#f8f8f5ff",
+    text_color: str = "#1e1e1e",
+    accent_color: str = "#038f6aaf",
+) -> None:
+    """Render the IELTS prompt using Pillow's built-in scalable font.
+
+    Args:
+        output_path (str): Destination image file.
+        width (int): Image width in pixels.
+        padding (int): Space around the prompt in pixels.
+        bg_color (str): Image background color.
+        text_color (str): Prompt text color.
+        accent_color (str): Title and heading color.
+
+    Returns:
+        None
+    """
     prompt = rf"""
 ### Instruction:
 You are an IELTS writing evaluator. 
@@ -33,8 +50,8 @@ Return format:
 """.strip()
 
     # ↑ увеличиваем шрифты
-    title_font = ImageFont.truetype(font_path, 38)
-    body_font = ImageFont.truetype(font_path, 32)
+    title_font = ImageFont.load_default(size=38)
+    body_font = ImageFont.load_default(size=32)
 
     # ↓ меньше строк = текст крупнее визуально
     wrapper = textwrap.TextWrapper(width=52)
@@ -215,5 +232,3 @@ def draw_aes_architecture(
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches="tight", format="webp")
-
-
