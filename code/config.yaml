@@ -1,0 +1,9 @@
+stage_switch:
+  transform_datasets: 0
+  analyze_data: 0
+  train_custom_regressor: 1
+  fine_tune_llm: 0
+  get_llm_predictions: 0
+  panda_evaluation: 0
+  aggregate_results: 0
+  evaluate_llm: 1

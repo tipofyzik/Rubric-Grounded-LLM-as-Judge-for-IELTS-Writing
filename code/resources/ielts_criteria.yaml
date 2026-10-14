@@ -1,0 +1,57 @@
+criteria:
+  task_achievement:
+    display_name: Task Response
+    source_name: Task Achievement
+    bands:
+      9:
+        "Band 9: Fully answer all parts of the question; Clear, strong position throughout; Ideas fully explained + well
+        supported"
+      8: "Band 8: Answer all parts well; Clear position; Ideas developed, minor gaps allowed"
+      7: "Band 7: Answer main parts; Clear position; Ideas developed but may lack depth or precision"
+      6:
+        "Band 6: Addresses the task but unevenly;Position is present but may be unclear or repetitive; Ideas relevant but
+        underdeveloped"
+      5: "Band 5: Partially answers the question; Position unclear or weak; Ideas limited, repetitive, or irrelevant"
+      4: "Band 4: Misunderstands or only partly addresses task; Position hard to find; Ideas unclear, poorly supported"
+      3: "Band 3: Does not properly address task; No clear position; Very few ideas, mostly irrelevant"
+      2: "Band 2: Barely related to task; No position; Almost no development"
+      1: "Band 1: Off-topic or <20 words; No meaningful response"
+  coherence_and_cohesion:
+    display_name: Coherence & Cohesion
+    source_name: Coherence and Cohesion
+    bands:
+      9: "Band 9: Perfect flow, effortless to read; Cohesion invisible (natural linking); Paragraphing excellent"
+      8: "Band 8: Logical organisation; Good linking, minor lapses; Clear paragraphs"
+      7: "Band 7: Clear progression; Range of linking words (some errors/overuse; Generally good paragraphing"
+      6: "Band 6: Generally logical organisation; Some faulty or mechanical linking; Paragraphing inconsistent"
+      5: "Band 5: Some organisation but not logical overall; Weak linking between sentences; Paragraphing weak or missing"
+      4: "Band 4: No clear progression; Ideas poorly connected; Basic linking, often incorrect"
+      3: "Band 3: No logical organisation; Minimal linking words; Hard to follow"
+      2: "Band 2: Almost no organisation; No clear links"
+      1: "Band 1: No structure at all"
+  lexical_resource:
+    display_name: Lexical Resource
+    source_name: Lexical Resource
+    bands:
+      9: "Band 9: Wide, precise, natural vocabulary; Sophisticated word choice; Almost no errors"
+      8: "Band 8: Wide vocabulary; Some advanced/idiomatic use; Occasional minor mistakes"
+      7: "Band 7: Enough range for flexibility; Some less common words; Occasional wrong word/awkward phrasing"
+      6: "Band 6: Adequate but limited range; Some repetition or imprecision; Errors noticeable but meaning clear"
+      5: "Band 5: Basic vocabulary; Frequent repetition; Noticeable word choice errors"
+      4: "Band 4: Very limited vocabulary; Frequent wrong word use; Meaning sometimes unclear"
+      3: "Band 3: Extremely limited vocabulary; Errors dominate; Meaning often unclear"
+      2: "Band 2: Only a few words/phrases; Mostly memorised language"
+      1: "Band 1: Almost no usable vocabulary"
+  grammatical_range_and_accuracy:
+    display_name: Grammatical Range & Accuracy
+    source_name: Grammatical Range and Accuracy
+    bands:
+      9: "Band 9: Wide range of complex structures; Almost all sentences error-free"
+      8: "Band 8: Wide range used well; Most sentences correct; Occasional minor errors"
+      7: "Band 7: Mix of simple + complex; Frequent error-free sentences; Some grammar mistakes"
+      6: "Band 6: Limited flexibility; Errors in complex sentences; Errors present but don’t block meaning"
+      5: "Band 5: Mostly simple sentences; Errors frequent, sometimes confusing"
+      4: "Band 4: Very limited structures; Frequent errors, may block meaning"
+      3: "Band 3: Attempted sentences but mostly incorrect; Meaning often lost"
+      2: "Band 2: Almost no correct sentences; Grammar barely controlled"
+      1: "Band 1: No sentence structure"
