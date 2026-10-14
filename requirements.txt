@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+# Installed dependency versions from local Python 3.11.3 on Windows.
+# This is a snapshot of project dependencies, not a full environment freeze.
+
+>>>>>>> d98852082e91eb2128515df4628fffb9010ed120
 # Data processing, evaluation and image generation.
 numpy==2.4.6
 pandas==3.0.1
