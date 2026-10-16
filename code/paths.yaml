@@ -51,6 +51,7 @@ files:
   llm_evaluation_truth: y_test.csv
   llm_aggregate: results.csv
   llm_response: "result_{evaluation}.json"
+  llm_response_diagnostics: diagnostics
   llm_metric_output_subdirectories:
     across_runs: mean_metrics_across_runs
     calibration: calibration

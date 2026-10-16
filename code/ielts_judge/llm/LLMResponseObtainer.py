@@ -13,36 +13,48 @@ class LLMResponseObtainer:
     """
     A class to obtain responses from LLMs for essay evaluation.
     """
-    def __init__(self, SERVICE_TOKEN: str) -> None:
+    def __init__(self, SERVICE_TOKEN: str, max_new_tokens: int = 200) -> None:
         """
         Initialize the LLMResponseObtainer with the necessary service token.
 
         Args:
             SERVICE_TOKEN (str): The API token for accessing the LLM service.
+            max_new_tokens (int): Maximum number of generated tokens per local answer.
+
+        Returns:
+            None
         """
         self.SERVICE_TOKEN = SERVICE_TOKEN
+        self.max_new_tokens = max_new_tokens
+        self.last_generation: dict = {}
 
     # Process locally
-    def load_model_and_tokenizer(self, model_url: str):
+    def load_model_and_tokenizer(self, model_url: str) -> None:
         """
         Load the model and tokenizer for local evaluation.
 
         Args:
             model_url (str): The URL or identifier of the model to load.
+
+        Returns:
+            None
         """
         from huggingface_hub import login
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         if self.SERVICE_TOKEN:
             login(self.SERVICE_TOKEN)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_url)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_url, clean_up_tokenization_spaces=False
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
             model_url,
             torch_dtype=torch.float16,
             device_map="auto"
         )
+        self.model.eval()
 
-    def __evaluate_essay_locally(self, essay: str):
+    def __evaluate_essay_locally(self, essay: str) -> dict | None:
         """
         Evaluate an essay locally using the loaded model.
 
@@ -52,6 +64,9 @@ class LLMResponseObtainer:
         Returns:
             dict|None: The evaluation results or None if an error occurs.
         """
+        from .JsonEosBlocker import JsonEosBlocker
+
+        self.last_generation = {}
         prompt = f"""
         ### Instruction:
         Evaluate the essay and return ONLY JSON, no text explanation.
@@ -71,28 +86,60 @@ class LLMResponseObtainer:
         ]
         
         text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+        inputs = self.tokenizer(
+            text, return_tensors="pt", add_special_tokens=False
+        ).to(self.model.device)
+        input_length = inputs["input_ids"].shape[1]
+        generation_config = getattr(self.model, "generation_config", None)
+        eos_tokens = getattr(generation_config, "eos_token_id", None)
+        if eos_tokens is None:
+            eos_tokens = getattr(self.tokenizer, "eos_token_id", None)
+        if isinstance(eos_tokens, int):
+            eos_tokens = [eos_tokens]
+        eos_blocker = JsonEosBlocker(self.tokenizer, input_length, eos_tokens or [])
 
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=200,
+                max_new_tokens=self.max_new_tokens,
                 temperature=0.2,
-                do_sample=True
+                do_sample=True,
+                logits_processor=[eos_blocker],
             )
-        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        response = response.split("### Answer:")[-1].strip()
-        match = re.search(r"\{[\s\S]*?\}", response)
-        if match:
-            answer = match.group(0)
+        generated_tokens = outputs[0, input_length:]
+        response = self.tokenizer.decode(
+            generated_tokens, skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )
+        token_count = int(generated_tokens.numel())
+        last_token = int(generated_tokens[-1].item()) if token_count else None
+        if last_token is not None and last_token in (eos_tokens or []):
+            stop_reason = "eos"
+        elif token_count >= self.max_new_tokens:
+            stop_reason = "max_new_tokens"
         else:
-            print("JSON не найден:", response)
-            return None
-        
+            stop_reason = "other"
+        self.last_generation = {
+            "raw_text": response,
+            "input_tokens": int(input_length),
+            "generated_tokens": token_count,
+            "max_new_tokens": self.max_new_tokens,
+            "last_token_id": last_token,
+            "stop_reason": stop_reason,
+            "parse_error": None,
+        }
         try:
-            return json.loads(answer)
-        except json.JSONDecodeError:
-            print("Ошибка при декодировании:", answer)
+            object_start = response.find("{")
+            if object_start < 0:
+                raise ValueError("JSON object was not found in the generated answer.")
+            answer, _ = json.JSONDecoder().raw_decode(response[object_start:])
+            if not isinstance(answer, dict):
+                raise ValueError("Generated JSON must be an object.")
+            return answer
+        except ValueError as error:
+            self.last_generation["parse_error"] = str(error)
+            print(f"JSON incomplete or invalid; tokens={token_count}/{self.max_new_tokens}; "
+                  f"stop={stop_reason}: {response}")
             return None
 
     def get_response_locally(self, number_of_evaluations: int, 
@@ -101,20 +148,30 @@ class LLMResponseObtainer:
         Get responses for a series of essays using the locally loaded model.
 
         Args:
-            test_llm_dataset (pd.Series): The series of essays to evaluate.
+            number_of_evaluations (int): Number of repeated inference passes.
+            test_dataset (pd.Series): The series of essays to evaluate.
 
         Returns:
-            list: A list of evaluation results.
+            None
         """
+        output_dir = PATHS["results"]["llm_hugging_face_responses"]
+        diagnostic_dir = os.path.join(
+            output_dir, PATHS["files"]["llm_response_diagnostics"]
+        )
+        os.makedirs(diagnostic_dir, exist_ok=True)
         for evaluation in range(number_of_evaluations):
             results = []
-            for i, essay in enumerate(test_dataset):
-                result = self.__evaluate_essay_locally(essay)
-                results.append(result)
-                print(f"Training {evaluation+1}: essay {i+1}")
-            output_dir = PATHS["results"]["llm_hugging_face_responses"]
-            os.makedirs(output_dir, exist_ok=True)
             filename = PATHS["files"]["llm_response"].format(evaluation=evaluation + 1)
+            diagnostic_path = os.path.join(diagnostic_dir, os.path.splitext(filename)[0] + ".jsonl")
+            with open(diagnostic_path, "w", encoding="utf-8") as diagnostic_file:
+                for i, essay in enumerate(test_dataset):
+                    self.last_generation = {}
+                    result = self.__evaluate_essay_locally(essay)
+                    results.append(result)
+                    record = {"sample_id": i, **self.last_generation, "prediction": result}
+                    diagnostic_file.write(json.dumps(record, ensure_ascii=False) + "\n")
+                    diagnostic_file.flush()
+                    print(f"Inference {evaluation+1}: essay {i+1}")
             with open(os.path.join(output_dir, filename),
                       "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=4)
