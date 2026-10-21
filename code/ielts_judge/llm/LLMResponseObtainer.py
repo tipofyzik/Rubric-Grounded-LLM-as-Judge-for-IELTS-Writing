@@ -3,9 +3,11 @@ import torch
 import json
 import re
 import os
+from dataclasses import asdict
 
 from ..paths import PATHS
 from ..criteria import format_score_schema
+from .generation import generate_response
 
 
 
@@ -64,8 +66,6 @@ class LLMResponseObtainer:
         Returns:
             dict|None: The evaluation results or None if an error occurs.
         """
-        from .JsonEosBlocker import JsonEosBlocker
-
         self.last_generation = {}
         prompt = f"""
         ### Instruction:
@@ -85,49 +85,15 @@ class LLMResponseObtainer:
             {"role": "user", "content": prompt}
         ]
         
-        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = self.tokenizer(
-            text, return_tensors="pt", add_special_tokens=False
-        ).to(self.model.device)
-        input_length = inputs["input_ids"].shape[1]
-        generation_config = getattr(self.model, "generation_config", None)
-        eos_tokens = getattr(generation_config, "eos_token_id", None)
-        if eos_tokens is None:
-            eos_tokens = getattr(self.tokenizer, "eos_token_id", None)
-        if isinstance(eos_tokens, int):
-            eos_tokens = [eos_tokens]
-        eos_blocker = JsonEosBlocker(self.tokenizer, input_length, eos_tokens or [])
-
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                temperature=0.2,
-                do_sample=True,
-                logits_processor=[eos_blocker],
-            )
-        generated_tokens = outputs[0, input_length:]
-        response = self.tokenizer.decode(
-            generated_tokens, skip_special_tokens=True,
-            clean_up_tokenization_spaces=False,
+        generation = generate_response(
+            self.model, self.tokenizer, messages,
+            max_new_tokens=self.max_new_tokens,
+            generation_settings={"temperature": 0.2, "do_sample": True},
         )
-        token_count = int(generated_tokens.numel())
-        last_token = int(generated_tokens[-1].item()) if token_count else None
-        if last_token is not None and last_token in (eos_tokens or []):
-            stop_reason = "eos"
-        elif token_count >= self.max_new_tokens:
-            stop_reason = "max_new_tokens"
-        else:
-            stop_reason = "other"
-        self.last_generation = {
-            "raw_text": response,
-            "input_tokens": int(input_length),
-            "generated_tokens": token_count,
-            "max_new_tokens": self.max_new_tokens,
-            "last_token_id": last_token,
-            "stop_reason": stop_reason,
-            "parse_error": None,
-        }
+        response = generation.raw_text
+        token_count = generation.generated_tokens
+        stop_reason = generation.stop_reason
+        self.last_generation = {**asdict(generation), "parse_error": None}
         try:
             object_start = response.find("{")
             if object_start < 0:

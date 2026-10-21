@@ -11,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 
 from .PandaModel import PandaModel
-from ..criteria import IELTS_CRITERIA, format_score_schema
+from ..criteria import format_rubric, format_score_schema
 from ..paths import PATHS
 
 
@@ -75,15 +75,8 @@ class PandaRetrievalEvaluator(PandaModel):
         with open(save_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def evaluate_essay(self, essay: str, num_similar: int = 1):
-        """
-        Evaluate essay using retrieved insights.
-        """
-        results = []
-        _, similar_insights = self.find_similar_essays(
-            essay, num_similar=num_similar
-        )    
-            
+    def build_evaluation_messages(self, essay: str, similar_insights) -> list[dict[str, str]]:
+        """Build the legacy retrieval prompt without models or index access."""
         insights_text = "\n\n".join([
             f"Insight {i+1}:\n{ins}"
             for i, ins in enumerate(similar_insights)
@@ -108,27 +101,23 @@ class PandaRetrievalEvaluator(PandaModel):
         ### Answer:
         """
         
-        rubric_sections = []
-        for definition in IELTS_CRITERIA["criteria"].values():
-            band_descriptors = definition["bands"]
-            ordered_bands = sorted(band_descriptors, reverse=True)
-            rubric_sections.append(
-                definition["display_name"].upper()
-                + "\n"
-                + "\n".join(band_descriptors[band] for band in ordered_bands)
-            )
-        rubric_text = "\n\n".join(rubric_sections)
-        message = [
+        return [
             {
                 "role": "system",
                 "content": (
                     "You are an IELTS examiner. Return ONLY valid JSON.\n"
                     "Consider requirements below for each IELTS criterion while evaluating the essay.\n\n"
-                    f"{rubric_text}"
+                    f"{format_rubric()}"
                 ),
             },
             {"role": "user", "content": prompt},
         ]
+
+    def evaluate_essay(self, essay: str, num_similar: int = 1):
+        """Evaluate essay using retrieved insights in the offline workflow."""
+        results = []
+        _, similar_insights = self.find_similar_essays(essay, num_similar=num_similar)
+        message = self.build_evaluation_messages(essay, similar_insights)
         text = self.tokenizer.apply_chat_template(
             message,
             tokenize=False,

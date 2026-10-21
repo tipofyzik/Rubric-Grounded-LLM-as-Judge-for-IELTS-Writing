@@ -40,6 +40,11 @@ def load_criteria() -> dict[str, dict[str, Any]]:
 
 IELTS_CRITERIA = load_criteria()
 CRITERION_IDS = tuple(IELTS_CRITERIA)
+LEGACY_TO_PUBLIC = {
+    criterion_id: "task_response" if criterion_id == "task_achievement" else criterion_id
+    for criterion_id in CRITERION_IDS
+}
+PUBLIC_CRITERION_IDS = tuple(LEGACY_TO_PUBLIC.values())
 CRITERION_NAMES = {
     criterion_id: definition["display_name"]
     for criterion_id, definition in IELTS_CRITERIA.items()
@@ -50,11 +55,24 @@ CRITERION_SOURCE_NAMES = {
 }
 
 
-def format_score_schema() -> str:
+def format_score_schema(criterion_ids: tuple[str, ...] = CRITERION_IDS) -> str:
     """Build the JSON score schema from the configured criterion identifiers.
 
     Returns:
         str: JSON-like score fields for insertion into an LLM prompt.
     """
-    fields = [f'"{criterion_id}": number' for criterion_id in CRITERION_IDS]
+    fields = [f'"{criterion_id}": number' for criterion_id in criterion_ids]
     return "{\n" + ",\n".join(fields) + "\n}"
+
+
+def format_rubric() -> str:
+    """Render the shared, abbreviated rubric without loading a model."""
+    sections = []
+    for definition in IELTS_CRITERIA.values():
+        bands = definition["bands"]
+        sections.append(
+            definition["display_name"].upper()
+            + "\n"
+            + "\n".join(bands[band] for band in sorted(bands, reverse=True))
+        )
+    return "\n\n".join(sections)

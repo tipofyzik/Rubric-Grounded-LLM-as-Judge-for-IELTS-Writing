@@ -12,7 +12,8 @@ class JsonEosBlocker(LogitsProcessor):
     """Block configured EOS tokens until the generated score JSON is complete."""
 
     def __init__(self, tokenizer: PreTrainedTokenizerBase, prompt_length: int,
-                 eos_tokens: list[int]) -> None:
+                 eos_tokens: list[int],
+                 criterion_ids: tuple[str, ...] = CRITERION_IDS) -> None:
         """Store the decoder and the boundary separating prompt and response.
 
         Args:
@@ -26,6 +27,7 @@ class JsonEosBlocker(LogitsProcessor):
         self.tokenizer = tokenizer
         self.prompt_length = prompt_length
         self.eos_tokens = eos_tokens
+        self.criterion_ids = criterion_ids
 
     def __call__(self, input_ids: torch.LongTensor,
                  scores: torch.FloatTensor) -> torch.FloatTensor:
@@ -68,5 +70,5 @@ class JsonEosBlocker(LogitsProcessor):
         return isinstance(answer, dict) and all(
             isinstance(answer.get(criterion), (int, float))
             and not isinstance(answer[criterion], bool)
-            for criterion in CRITERION_IDS
+            for criterion in self.criterion_ids
         )

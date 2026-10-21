@@ -24,10 +24,57 @@ class PandaInsightGenerator(PandaModel):
         super().__init__(service_token)
         self.band_requirements = {
             definition["display_name"]: definition["bands"]
-            for definition in IELTS_CRITERIA["criteria"].values()
+            for definition in IELTS_CRITERIA.values()
         }
 
-    def retrieve_insights(self, essays: np.ndarray, scores: np.ndarray, 
+    def build_insight_prompt(self, essay: str, score: np.ndarray) -> str:
+        """Build the offline explanation prompt without loading a model."""
+        score_by_criterion = dict(zip(CRITERION_IDS, score))
+        criteria_scores = "\n".join(
+            f"- {IELTS_CRITERIA[criterion_id]['display_name']}: "
+            f"{score_by_criterion[criterion_id]}"
+            for criterion_id in CRITERION_IDS
+        )
+        scoring_requirements = []
+        for criterion_id in CRITERION_IDS:
+            definition = IELTS_CRITERIA[criterion_id]
+            criterion_score = math.trunc(score_by_criterion[criterion_id])
+            bands = definition["bands"]
+            criterion_bands = (
+                max(1, criterion_score - 1),
+                max(1, criterion_score),
+                min(9, criterion_score + 1),
+            )
+            scoring_requirements.append(
+                f"{definition['display_name']}\n"
+                + "\n".join(bands[band] for band in criterion_bands)
+            )
+        scoring_requirements_text = "\n\n".join(scoring_requirements)
+        return f"""
+                ### Instruction:
+                Your task is to explain why the expert gave the selected score for each criterion,
+                using the band descriptors provided. Focus on differences between adjacent bands and link
+                your reasoning to specific evidence from the essay.
+
+                Scores given by expert:
+                {criteria_scores}
+
+                For EACH criterion output EXACTLY 3 bullet points:
+                [Criterion name]
+                - Evidence:
+                - Why not higher (score + 1):
+                - Why not lower (score - 1):
+
+                Essay:
+                {essay}
+
+                Scoring Requirements:
+                {scoring_requirements_text}
+
+                ### Answer:
+                """
+
+    def retrieve_insights(self, essays: np.ndarray, scores: np.ndarray,
                           num_insights: int = 1, batch_size=12) -> None:
         """
         """
@@ -37,50 +84,7 @@ class PandaInsightGenerator(PandaModel):
             batch_prompts = []
             torch.cuda.empty_cache()
             for essay, score in zip(batch_essays, batch_scores):
-                score_by_criterion = dict(zip(CRITERION_IDS, score))
-                criteria_scores = "\n".join(
-                    f"- {IELTS_CRITERIA['criteria'][criterion_id]['display_name']}: "
-                    f"{score_by_criterion[criterion_id]}"
-                    for criterion_id in CRITERION_IDS
-                )
-                scoring_requirements = []
-                for criterion_id in CRITERION_IDS:
-                    definition = IELTS_CRITERIA["criteria"][criterion_id]
-                    criterion_score = math.trunc(score_by_criterion[criterion_id])
-                    bands = definition["bands"]
-                    criterion_bands = (
-                        max(1, criterion_score - 1),
-                        max(1, criterion_score),
-                        min(9, criterion_score + 1),
-                    )
-                    scoring_requirements.append(
-                        f"{definition['display_name']}\n"
-                        + "\n".join(bands[band] for band in criterion_bands)
-                    )
-                scoring_requirements_text = "\n\n".join(scoring_requirements)
-                prompt = f"""
-                ### Instruction:
-                Your task is to explain why the expert gave the selected score for each criterion, 
-                using the band descriptors provided. Focus on differences between adjacent bands and link 
-                your reasoning to specific evidence from the essay.
-                
-                Scores given by expert:
-                {criteria_scores}
-                
-                For EACH criterion output EXACTLY 3 bullet points:
-                [Criterion name]
-                - Evidence:
-                - Why not higher (score + 1): 
-                - Why not lower (score - 1):
-                
-                Essay:
-                {essay}
-                
-                Scoring Requirements:
-                {scoring_requirements_text}
-                
-                ### Answer:
-                """
+                prompt = self.build_insight_prompt(essay, score)
                 message = [{"role": "user", "content": prompt}]
                 text = self.tokenizer.apply_chat_template(
                     message,
