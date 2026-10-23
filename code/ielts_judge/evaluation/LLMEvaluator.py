@@ -137,6 +137,12 @@ class LLMEvaluator:
         Returns:
             tuple[np.ndarray, np.ndarray]: (y_true, y_pred)
         """
+        if 'dataset_manifest' in self.y_true_df:
+            expected = set(self.y_true_df['dataset_manifest'].dropna())
+            if (len(expected) != 1 or self.y_true_df['dataset_manifest'].isna().any()
+                    or 'dataset_manifest' not in run_df or run_df['dataset_manifest'].isna().any()
+                    or set(run_df['dataset_manifest']) != expected):
+                raise ValueError('Predictions and reference belong to different dataset releases')
         if "sample_id" not in run_df.columns or "index" not in self.y_true_df.columns:
             raise ValueError("Both prediction sample_id and reference index are required.")
         if run_df["sample_id"].duplicated().any():

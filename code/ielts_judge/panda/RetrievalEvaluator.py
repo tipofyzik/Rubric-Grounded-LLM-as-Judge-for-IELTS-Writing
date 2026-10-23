@@ -13,14 +13,17 @@ from sentence_transformers import SentenceTransformer
 from .PandaModel import PandaModel
 from ..criteria import format_rubric, format_score_schema
 from ..paths import PATHS
+from ..data.preparation import text_hash
+from ..data.runtime import Submission, submission_text
 
 
 class PandaRetrievalEvaluator(PandaModel):
-    def load_transormer_and_tokenizer(self, transformer_url: str = "BAAI/bge-base-en-v1.5"):
+    def load_transormer_and_tokenizer(self, transformer_url: str = "BAAI/bge-base-en-v1.5", revision: str | None = None):
         """
         Load embedding model for retrieval (SentenceTransformer).
         """
-        self.embedder = SentenceTransformer(transformer_url)
+        self.embedder = SentenceTransformer(transformer_url, revision=revision)
+        self.embedding_profile = {"model_id": transformer_url, "revision": revision}
 
     def load_panda_insights(self, path: str):
         """
@@ -28,27 +31,55 @@ class PandaRetrievalEvaluator(PandaModel):
         """
         self.panda_insights = pd.read_csv(path)
 
-    def build_retrieval_index(self, essays: np.ndarray):
+    def build_retrieval_index(self, essays: np.ndarray | pd.DataFrame):
         """
         Build embedding index for retrieval.
         """
-        self.essay_corpus = essays
+        self.corpus_frame = None
+        if isinstance(essays, pd.DataFrame):
+            frame = essays.copy()
+            if not frame['status'].eq('accepted').all() or not frame['split'].eq('train').all():
+                raise ValueError("Reference corpus must contain only accepted train rows")
+            if frame['essay_id'].duplicated().any() or frame['essay_hash'].duplicated().any():
+                raise ValueError("Reference IDs and essay hashes must be unique")
+            if 'essay_id' not in self.panda_insights or self.panda_insights['essay_id'].duplicated().any():
+                raise ValueError("Reference insights require unique essay IDs")
+            if set(frame.essay_id) != set(self.panda_insights.essay_id):
+                raise ValueError("Reference corpus and insight essay IDs do not match")
+            manifest = frame.attrs.get('manifest_sha256')
+            if not manifest or 'dataset_manifest' not in self.panda_insights or not self.panda_insights.dataset_manifest.eq(manifest).all():
+                raise ValueError("Reference insights belong to a different dataset release")
+            self.panda_insights = self.panda_insights.set_index('essay_id', drop=False).loc[frame.essay_id].reset_index(drop=True)
+            self.corpus_frame = frame.reset_index(drop=True)
+            self.retrieval_metadata = {"dataset_manifest": manifest, "essay_ids": frame.essay_id.tolist(),
+                                       "embedding_profile": getattr(self, 'embedding_profile', None)}
+            essay_texts = frame.essay.to_numpy()
+        else:
+            essay_texts = essays
+        self.essay_corpus = essay_texts
         self.essay_embeddings = self.embedder.encode(
-            essays,
+            essay_texts,
             batch_size=64,
             show_progress_bar=True
         )
 
-    def find_similar_essays(self, train_essay: str, num_similar: int = 1):
+    def find_similar_essays(self, train_essay: Submission, num_similar: int = 1):
         """
         Find top-k similar essays based on cosine similarity.
         """
         assert self.essay_embeddings is not None, "Embeddings not initialized"
         
-        query_emb = self.embedder.encode([train_essay])
+        submission = train_essay
+        query_essay = submission['essay'] if isinstance(submission, dict) else submission
+        query_emb = self.embedder.encode([query_essay])
         similarities = cosine_similarity(query_emb, self.essay_embeddings)[0]
         
-        top_idx = np.argsort(similarities)[::-1][:num_similar]
+        candidates = np.argsort(similarities)[::-1]
+        if self.corpus_frame is not None:
+            query_id = submission.get('essay_id') if isinstance(submission, dict) else None
+            candidates = [i for i in candidates if self.corpus_frame.iloc[i].essay_id != query_id
+                          and self.corpus_frame.iloc[i].essay_hash != text_hash(query_essay)]
+        top_idx = candidates[:num_similar]
         
         similar_essays = [self.essay_corpus[i] for i in top_idx]
         similar_insights = [self.panda_insights.iloc[i] for i in top_idx]
@@ -75,8 +106,9 @@ class PandaRetrievalEvaluator(PandaModel):
         with open(save_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def build_evaluation_messages(self, essay: str, similar_insights) -> list[dict[str, str]]:
+    def build_evaluation_messages(self, essay: Submission, similar_insights) -> list[dict[str, str]]:
         """Build the legacy retrieval prompt without models or index access."""
+        essay = submission_text(essay)
         insights_text = "\n\n".join([
             f"Insight {i+1}:\n{ins}"
             for i, ins in enumerate(similar_insights)
@@ -113,7 +145,7 @@ class PandaRetrievalEvaluator(PandaModel):
             {"role": "user", "content": prompt},
         ]
 
-    def evaluate_essay(self, essay: str, num_similar: int = 1):
+    def evaluate_essay(self, essay: Submission, num_similar: int = 1):
         """Evaluate essay using retrieved insights in the offline workflow."""
         results = []
         _, similar_insights = self.find_similar_essays(essay, num_similar=num_similar)

@@ -1,7 +1,7 @@
 """Public single-submission judge call, independent of UI and research writers."""
 
 from dataclasses import asdict
-from typing import Any
+from typing import Any, cast
 
 from ..criteria import PUBLIC_CRITERION_IDS
 from ..model_registry import ModelRegistry
@@ -51,7 +51,7 @@ class Judge:
             profile.repo_id, revision=profile.revision, token=token,
             torch_dtype=torch.float32 if device == "cpu" else torch.float16,
         )
-        model.to(device)
+        cast(torch.nn.Module, model).to(device)
         return cls(model_key, model, tokenizer, registry)
 
     def predict(self, *, model_key: str, task_prompt: str, essay: str,

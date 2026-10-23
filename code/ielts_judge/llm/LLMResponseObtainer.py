@@ -8,6 +8,7 @@ from dataclasses import asdict
 from ..paths import PATHS
 from ..criteria import format_score_schema
 from .generation import generate_response
+from ..data.runtime import Submission, SubmissionBatch, evaluation_samples, prediction_record, submission_text
 
 
 
@@ -56,7 +57,7 @@ class LLMResponseObtainer:
         )
         self.model.eval()
 
-    def __evaluate_essay_locally(self, essay: str) -> dict | None:
+    def __evaluate_essay_locally(self, essay: Submission) -> dict | None:
         """
         Evaluate an essay locally using the loaded model.
 
@@ -66,6 +67,7 @@ class LLMResponseObtainer:
         Returns:
             dict|None: The evaluation results or None if an error occurs.
         """
+        essay = submission_text(essay)
         self.last_generation = {}
         prompt = f"""
         ### Instruction:
@@ -109,7 +111,7 @@ class LLMResponseObtainer:
             return None
 
     def get_response_locally(self, number_of_evaluations: int, 
-                                   test_dataset: pd.Series) -> None:
+                                   test_dataset: SubmissionBatch) -> None:
         """
         Get responses for a series of essays using the locally loaded model.
 
@@ -130,14 +132,14 @@ class LLMResponseObtainer:
             filename = PATHS["files"]["llm_response"].format(evaluation=evaluation + 1)
             diagnostic_path = os.path.join(diagnostic_dir, os.path.splitext(filename)[0] + ".jsonl")
             with open(diagnostic_path, "w", encoding="utf-8") as diagnostic_file:
-                for i, essay in enumerate(test_dataset):
+                for sample_id, essay, manifest in evaluation_samples(test_dataset):
                     self.last_generation = {}
                     result = self.__evaluate_essay_locally(essay)
-                    results.append(result)
-                    record = {"sample_id": i, **self.last_generation, "prediction": result}
+                    results.append(prediction_record(sample_id, essay, manifest, result))
+                    record = {"sample_id": sample_id, "dataset_manifest": manifest, **self.last_generation, "prediction": result}
                     diagnostic_file.write(json.dumps(record, ensure_ascii=False) + "\n")
                     diagnostic_file.flush()
-                    print(f"Inference {evaluation+1}: essay {i+1}")
+                    print(f"Inference {evaluation+1}: essay {sample_id}")
             with open(os.path.join(output_dir, filename),
                       "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=4)
@@ -146,7 +148,7 @@ class LLMResponseObtainer:
 
     #Process online
     #Hugging Face
-    def __evaluate_essay_hugging_face(self, model_url: str, essay: str) -> dict|None:
+    def __evaluate_essay_hugging_face(self, model_url: str, essay: Submission) -> dict|None:
         """
         Evaluate an essay using the Hugging Face API.
 
@@ -157,6 +159,7 @@ class LLMResponseObtainer:
         Returns:
             dict|None: The evaluation results or None if an error occurs.
         """
+        essay = submission_text(essay)
         prompt = f"""
         ### Instruction:
         Evaluate the essay and return ONLY JSON, no text explanation.
@@ -216,7 +219,7 @@ class LLMResponseObtainer:
             return None
 
     def get_responses_huggin_face(self, model_url: str, number_of_evaluations: int, 
-                                  test_dataset: pd.Series) -> None:
+                                  test_dataset: SubmissionBatch) -> None:
         """
         Get responses for a series of essays using the Hugging Face API.
         
@@ -230,10 +233,10 @@ class LLMResponseObtainer:
         """
         for evaluation in range(number_of_evaluations):
             results = []
-            for i, essay in enumerate(test_dataset):
+            for sample_id, essay, manifest in evaluation_samples(test_dataset):
                 result = self.__evaluate_essay_hugging_face(model_url=model_url, essay=essay)
-                results.append(result)
-                print(f"Training {evaluation+1}: essay {i+1}")
+                results.append(prediction_record(sample_id, essay, manifest, result))
+                print(f"Inference {evaluation+1}: essay {sample_id}")
             output_dir = PATHS["results"]["llm_hugging_face_responses"]
             os.makedirs(output_dir, exist_ok=True)
             filename = PATHS["files"]["llm_response"].format(evaluation=evaluation + 1)
@@ -259,7 +262,7 @@ class LLMResponseObtainer:
             api_key=self.SERVICE_TOKEN
         )
         
-    def __evaluate_essay_openai(self, essay: str):
+    def __evaluate_essay_openai(self, essay: Submission):
         """
         Evaluate an essay using the OpenAI API.
 
@@ -270,6 +273,7 @@ class LLMResponseObtainer:
             dict|None: The evaluation results or None if an error occurs.
         """
         from openai.types.chat import ChatCompletionMessageParam
+        essay = submission_text(essay)
 
         messages: list[ChatCompletionMessageParam] = [
             {
@@ -309,7 +313,7 @@ class LLMResponseObtainer:
             return None
     
     def get_responses_openai(self, model_url: str, number_of_evaluations: int, 
-                                  test_dataset: pd.Series) -> None:
+                                  test_dataset: SubmissionBatch) -> None:
         """
         Get responses for a series of essays using the OpenAI API.
 
@@ -324,10 +328,10 @@ class LLMResponseObtainer:
         self.__connect_to_openai(model_url=model_url)
         for evaluation in range(number_of_evaluations):
             results = []
-            for i, essay in enumerate(test_dataset):
+            for sample_id, essay, manifest in evaluation_samples(test_dataset):
                 result = self.__evaluate_essay_openai(essay=essay)
-                results.append(result)
-                print(f"Training {evaluation+1}: essay {i+1}")
+                results.append(prediction_record(sample_id, essay, manifest, result))
+                print(f"Inference {evaluation+1}: essay {sample_id}")
             output_dir = PATHS["results"]["llm_openai_responses"]
             os.makedirs(output_dir, exist_ok=True)
             filename = PATHS["files"]["llm_response"].format(evaluation=evaluation + 1)

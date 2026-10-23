@@ -2,6 +2,7 @@ import torch
 import json
 import re
 import os
+from typing import Sequence
 
 from datasets import Dataset
 from transformers import (
@@ -20,6 +21,7 @@ from peft import (
 )
 
 from ..criteria import CRITERION_IDS, format_score_schema
+from ..data.runtime import Submission, submission_text
 from ..paths import PATHS
 
 
@@ -91,7 +93,7 @@ class LLMFineTuner:
 
     # Prompt building
 
-    def _build_prompt(self, text: str, scores: list[float]) -> str:
+    def _build_prompt(self, text: Submission, scores: list[float]) -> str:
         """
         Construct a structured prompt for the model based on input text and scores.
 
@@ -103,6 +105,7 @@ class LLMFineTuner:
         Returns:
             str: A formatted prompt including the JSON output of scores.
         """
+        text = submission_text(text)
         output = dict(zip(CRITERION_IDS, scores))
 
         prompt = f"""
@@ -122,7 +125,7 @@ class LLMFineTuner:
 
     # Dataset
 
-    def build_dataset(self, essays: list[str], scores: list[list[float]]) -> Dataset:
+    def build_dataset(self, essays: Sequence[Submission], scores: list[list[float]]) -> Dataset:
         """
         Build a HuggingFace Dataset from lists of texts and their corresponding scores.
 
@@ -209,7 +212,7 @@ class LLMFineTuner:
 
     # Training
 
-    def train(self, x_train: list[str], y_train: list[list[float]]) -> None:
+    def train(self, x_train: Sequence[Submission], y_train: list[list[float]]) -> None:
         """
         Fine-tune the model on the provided training data.
 
@@ -240,7 +243,7 @@ class LLMFineTuner:
 
     # Evaluation
 
-    def evaluate_llm(self, x_test: list[str], y_test: list[list[float]],
+    def evaluate_llm(self, x_test: Sequence[Submission], y_test: list[list[float]],
                      output_file: str = PATHS["results"]["llm_predictions"]) -> list[dict]:
         """
         Evaluate the fine-tuned model on test data and save results to a JSON file.
@@ -262,6 +265,9 @@ class LLMFineTuner:
         results = []
 
         for text, true_scores in zip(x_test, y_test):
+
+            submission = text
+            text = submission_text(text)
 
             prompt = f"""
             ### Instruction:
@@ -311,6 +317,8 @@ class LLMFineTuner:
                 pred = None
 
             results.append({
+                "essay_id": submission.get('essay_id') if isinstance(submission, dict) else None,
+                "dataset_manifest": submission.get('dataset_manifest') if isinstance(submission, dict) else None,
                 "text": text,
                 "true_scores": true_scores,
                 "full_model_output": decoded,

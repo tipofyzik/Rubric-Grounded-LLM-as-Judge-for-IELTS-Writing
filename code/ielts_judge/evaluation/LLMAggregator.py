@@ -5,6 +5,7 @@ import pandas as pd
 
 from ..paths import PATHS
 from collections import defaultdict, Counter
+from ..data.runtime import legacy_prediction
 
 
 
@@ -29,7 +30,7 @@ class LLMAggregator:
         """
         Load JSON files from the folder and group them by model name.
         """
-        for file in os.listdir(self.folder_path):
+        for file in sorted(os.listdir(self.folder_path)):
             if file.endswith(".json"):
                 model_name = "_".join(file.split("_")[:-1])
                 full_path = os.path.join(self.folder_path, file)
@@ -307,6 +308,29 @@ class LLMAggregator:
         Args:
             output_path (str): Output file path.
         """
+        self.models.clear()
         self.__load_files()
+        items = [item for files in self.models.values() for run in files for item in run]
+        if any(isinstance(item, dict) and 'essay_id' in item for item in items):
+            rows = []
+            reference_ids, reference_manifest = None, None
+            for model, files in self.models.items():
+                for run_id, run in enumerate(files):
+                    if not all(isinstance(item, dict) and item.get('essay_id') and item.get('dataset_manifest') for item in run):
+                        raise ValueError('Cannot mix identified and positional predictions')
+                    ids = [item['essay_id'] for item in run]
+                    manifests = {item['dataset_manifest'] for item in run}
+                    if len(ids) != len(set(ids)) or len(manifests) != 1:
+                        raise ValueError('Duplicate essay IDs or mixed dataset releases')
+                    if reference_ids is None:
+                        reference_ids, reference_manifest = set(ids), manifests
+                    if set(ids) != reference_ids or manifests != reference_manifest:
+                        raise ValueError('Prediction runs belong to different samples or releases')
+                    rows.extend({'model': model, 'file_id': run_id, 'sample_id': item['essay_id'],
+                                 'dataset_manifest': item['dataset_manifest'],
+                                 **legacy_prediction(item.get('answer'))} for item in run)
+            destination = os.path.join(output_path, PATHS['files']['llm_aggregate']) if os.path.isdir(output_path) else output_path
+            pd.DataFrame(rows).to_csv(destination, index=False)
+            return
         self.__clean_nulls()
         self.__save_all_to_csv(output_path)

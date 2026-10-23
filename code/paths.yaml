@@ -1,10 +1,12 @@
 # Relative paths are resolved from the project root (src).
 datasets:
-  hugging_face_train: code/resources/datasets/HuggingFace dataset/hugging_face_train.csv
-  hugging_face_test: code/resources/datasets/HuggingFace dataset/hugging_face_test.csv
-  kaggle: code/resources/datasets/Kaggle dataset/kaggle_dataset.csv
-  transformed_hugging_face: code/resources/datasets/transformed_hugging_face_dataset.csv
-  transformed_kaggle: code/resources/datasets/transformed_kaggle_dataset.csv
+  source_root: code/resources/datasets
+  prepared: code/resources/datasets/processed/ielts-v3
+  hugging_face_train: code/resources/datasets/chillies - IELTS-writing-task-2-evaluation/hugging_face_train.csv
+  hugging_face_test: code/resources/datasets/chillies - IELTS-writing-task-2-evaluation/hugging_face_test.csv
+  writing9_train: code/resources/datasets/ndtran0101 - writing9-ielts-essays/data/train.jsonl
+  writing9_test: code/resources/datasets/ndtran0101 - writing9-ielts-essays/data/test.jsonl
+  transformed_hugging_face: code/resources/datasets/chillies - IELTS-writing-task-2-evaluation/transformed_dataset.csv
   llm_train: code/resources/datasets/train_llm.csv
   llm_test: code/resources/datasets/test_llm.csv
 
@@ -15,6 +17,7 @@ resources:
   ielts_criteria: code/resources/ielts_criteria.yaml
 
 results:
+  dataset_runs: results/datasets/ielts-v3
   ordinal_regression: results/ordinal_regression
   llm_training: results/llm
   llm_predictions: results/llm_predictions.json

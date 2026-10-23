@@ -1,45 +1,56 @@
-import pandas as pd
-import re
+"""One offline entry point for Chillies extraction and Writing9 preparation."""
 
-from ..criteria import CRITERION_IDS, IELTS_CRITERIA
+import re
+import pandas as pd
+from ..criteria import CRITERION_IDS, IELTS_CRITERIA, LEGACY_TO_PUBLIC
 
 
 class DatasetTransformer:
-    """
-    This class is responsible for transforming the dataset, including feature engineering and selection.
-    """
-    def __init__(self, datasets_paths: dict[str, str]):
-        """
-        Initializes the DatasetTransformer instance.
-
-        Arguments:
-            hugging_face_dataset_path (str): The file path to the Hugging Face dataset.
-            kaggle_dataset_path (str): The file path to the Kaggle dataset.
-            output_path (str): The file path where the output dataset will be saved.
-        """
+    def __init__(self, datasets_paths, selection=None, *, save_intermediate_datasets=False):
         self.datasets_paths = datasets_paths
-    
+        self.selection = selection
+        self.save_intermediate_datasets = save_intermediate_datasets
 
-    # Loading datasets
-    def load_hugging_face_datasets(self) -> pd.DataFrame:
-        """
-        Loads the Hugging Face datasets from the specified file paths.
-        Returns:
-            pandas.DataFrame: A concatenated DataFrame containing both the Hugging Face train and test datasets.
-        """
-        hugging_face_train_dataset = pd.read_csv(self.datasets_paths["hugging_face_train_dataset_path"])
-        hugging_face_test_dataset = pd.read_csv(self.datasets_paths["hugging_face_test_dataset_path"])
-        self.hugging_face_dataset = pd.concat([hugging_face_train_dataset, hugging_face_test_dataset], ignore_index=True)
-        return self.hugging_face_dataset
+    def prepare(self, *, limit_per_split=None):
+        """Extract both local sources and resolve their duplicates together."""
+        from .preparation import PreparedDataset, extract_sources, resolve_duplicates, source_paths
+        paths = source_paths(self.datasets_paths["source_root"])
+        for files in paths.values():
+            for path in files.values():
+                if not path.is_file():
+                    raise FileNotFoundError(path)
+        extracted, sources = extract_sources(paths, self.extract_score, limit_per_split)
+        return PreparedDataset(resolve_duplicates(extracted), sources, extracted)
 
-    def load_kaggle_dataset(self) -> pd.DataFrame:
-        """
-        Loads the Kaggle dataset from the specified file path.
-        Returns:
-            pandas.DataFrame: A DataFrame containing the Kaggle dataset.
-        """
-        self.kaggle_dataset = pd.read_csv(self.datasets_paths["kaggle_dataset_path"])
-        return self.kaggle_dataset
+
+    def save_processed(self, prepared, output):
+        from .preparation import save_prepared, source_paths
+        return save_prepared(prepared, output, source_paths(self.datasets_paths["source_root"]),
+                             selection=self.selection, save_intermediate_datasets=self.save_intermediate_datasets)
+
+    def prepare_from_extracted(self, release, *, allow_partial=False):
+        """Reapply duplicate/cleanup rules to verified extracted rows, without regex parsing."""
+        from pathlib import Path
+        from .preparation import PreparedDataset, file_hash, resolve_duplicates
+        _, _, manifest = self.load_processed(release, allow_partial=allow_partial)
+        release = Path(release)
+        extracted = {source: pd.read_parquet(release / 'extracted' / f'{source}.parquet')
+                     for source in ('chillies', 'writing9')}
+        return PreparedDataset(resolve_duplicates(extracted), manifest['sources'], extracted,
+                               parent_manifest=file_hash(release / 'manifest.json'))
+
+
+    def prepare_and_save(self, output, *, limit_per_split=None):
+        from .preparation import source_paths, validate_output
+        validate_output(output, source_paths(self.datasets_paths["source_root"]))
+        return self.save_processed(self.prepare(limit_per_split=limit_per_split), output)
+
+
+    @staticmethod
+    def load_processed(output, source="combined", *, allow_partial=False):
+        from .preparation import load_prepared
+        return load_prepared(output, source, allow_partial=allow_partial)
+
 
     def extract_score(self,text: str, criterion: str, next_criterion: str | None = None) -> float|None:
         """
@@ -90,58 +101,34 @@ class DatasetTransformer:
                     return float(match_number.group(1))
             
         return None
-    
-    def fill_missing_scores(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        """
-        Preserves missing criterion scores instead of replacing them with the overall band.
 
-        Args:
-            dataset (pd.DataFrame): The dataset with missing scores.
-        """
-        # The overall band is not a substitute for a missing criterion label.
-        # Keep missing labels explicit so downstream evaluation cannot treat
-        # inferred values as independent criterion-level ground truth.
+
+    def load_hugging_face_datasets(self):
+        """Read original CSVs with source split/row provenance; never read a cache."""
+        from .preparation import source_paths
+        files = source_paths(self.datasets_paths['source_root'])['chillies']
+        frames = []
+        for split, path in files.items():
+            frame = pd.read_csv(path)
+            frame['source_split'] = split
+            frame['source_line'] = range(1, len(frame) + 1)
+            frames.append(frame)
+        return pd.concat(frames, ignore_index=True)
+
+    def transform_hugging_face_dataset(self):
+        """Re-extract old evaluations without rewriting source CSVs or requiring Writing9."""
+        from .preparation import extract_sources, source_paths
+        paths = source_paths(self.datasets_paths['source_root'])
+        extracted, _ = extract_sources({'chillies': paths['chillies']}, self.extract_score)
+        return extracted['chillies']
+
+    def load_transformed_hugging_face_dataset(self):
+        """Compatibility view of accepted Chillies Parquet rows, with legacy names."""
+        train, test, _ = self.load_processed(self.datasets_paths['prepared'], 'chillies')
+        mapping = {v:k for k,v in LEGACY_TO_PUBLIC.items()}
+        mapping.update(task_prompt='prompt', overall_label='band')
+        return pd.concat([train, test], ignore_index=True).rename(columns=mapping)
+
+    def fill_missing_scores(self, dataset):
+        """Missing labels remain unknown; overall is never an imputation source."""
         return dataset
-
-    def transform_hugging_face_dataset(self) -> None:
-        """
-        Transforms the Hugging Face dataset by performing feature engineering and selection.
-        Returns:
-            pandas.DataFrame: A transformed DataFrame containing the Hugging Face dataset.
-        """
-        self.hugging_face_dataset = self.load_hugging_face_datasets()
-        criteria = [
-            (criterion_id, IELTS_CRITERIA[criterion_id]["source_name"])
-            for criterion_id in CRITERION_IDS
-        ]
-        for index, (criterion_id, criterion) in enumerate(criteria):
-            # Define the next criterion for block delimitation, or None if this is the last criterion
-            next_criterion = (
-                criteria[index + 1][1]
-                if index + 1 < len(criteria)
-                else "Overall Band"
-            )
-
-            # Extract the score for the current criterion and create a new column in the dataset
-            self.hugging_face_dataset[criterion_id] = \
-                self.hugging_face_dataset["evaluation"].apply(
-                    lambda x, criterion=criterion, next_criterion=next_criterion: self.extract_score(x, criterion, next_criterion)
-                )
-        
-        self.hugging_face_dataset = self.fill_missing_scores(self.hugging_face_dataset)
-
-        essay_text = self.hugging_face_dataset["essay"].astype("string").str.strip()
-        self.hugging_face_dataset = self.hugging_face_dataset.loc[
-            essay_text.notna() & essay_text.ne("")
-        ].copy()
-        # --- Saving final dataset ---
-        self.hugging_face_dataset.to_csv(self.datasets_paths["transformed_hugging_face_dataset_path"], index=False)
-
-    def load_transformed_hugging_face_dataset(self) -> pd.DataFrame:
-        """
-        Loads the transformed Hugging Face dataset from the specified file path.
-        Returns:
-            pandas.DataFrame: A DataFrame containing the transformed Hugging Face dataset.
-        """
-        self.transformed_hugging_face_dataset = pd.read_csv(self.datasets_paths["transformed_hugging_face_dataset_path"])
-        return self.transformed_hugging_face_dataset

@@ -51,7 +51,8 @@ Return format:
 
     # ↑ увеличиваем шрифты
     title_font = ImageFont.load_default(size=38)
-    body_font = ImageFont.load_default(size=32)
+    body_size = 32
+    body_font = ImageFont.load_default(size=body_size)
 
     # ↓ меньше строк = текст крупнее визуально
     wrapper = textwrap.TextWrapper(width=52)
@@ -65,7 +66,7 @@ Return format:
             wrapped_lines.extend(wrapper.wrap(line))
 
     # ↑ чуть больше воздуха между строками
-    line_height = body_font.size + 18
+    line_height = body_size + 18
 
     height = padding * 2 + 70 + line_height * len(wrapped_lines)
 

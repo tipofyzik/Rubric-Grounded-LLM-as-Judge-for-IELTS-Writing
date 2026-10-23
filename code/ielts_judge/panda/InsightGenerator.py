@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 
 from .PandaModel import PandaModel
-from ..criteria import CRITERION_IDS, IELTS_CRITERIA
+from ..criteria import CRITERION_IDS, IELTS_CRITERIA, PUBLIC_CRITERION_IDS
 from ..paths import PATHS
 
 
@@ -27,7 +27,7 @@ class PandaInsightGenerator(PandaModel):
             for definition in IELTS_CRITERIA.values()
         }
 
-    def build_insight_prompt(self, essay: str, score: np.ndarray) -> str:
+    def build_insight_prompt(self, essay: str, score: np.ndarray, task_prompt: str | None = None) -> str:
         """Build the offline explanation prompt without loading a model."""
         score_by_criterion = dict(zip(CRITERION_IDS, score))
         criteria_scores = "\n".join(
@@ -38,13 +38,12 @@ class PandaInsightGenerator(PandaModel):
         scoring_requirements = []
         for criterion_id in CRITERION_IDS:
             definition = IELTS_CRITERIA[criterion_id]
-            criterion_score = math.trunc(score_by_criterion[criterion_id])
+            value = float(score_by_criterion[criterion_id])
+            if not math.isfinite(value) or not 0 <= value <= 9:
+                raise ValueError("Criterion score must be within 0-9")
+            criterion_score = math.trunc(value)
             bands = definition["bands"]
-            criterion_bands = (
-                max(1, criterion_score - 1),
-                max(1, criterion_score),
-                min(9, criterion_score + 1),
-            )
+            criterion_bands = [band for band in range(max(0, criterion_score - 1), min(9, criterion_score + 1) + 1) if band in bands]
             scoring_requirements.append(
                 f"{definition['display_name']}\n"
                 + "\n".join(bands[band] for band in criterion_bands)
@@ -52,11 +51,11 @@ class PandaInsightGenerator(PandaModel):
         scoring_requirements_text = "\n\n".join(scoring_requirements)
         return f"""
                 ### Instruction:
-                Your task is to explain why the expert gave the selected score for each criterion,
+                Your task is to explain the source dataset's selected score for each criterion,
                 using the band descriptors provided. Focus on differences between adjacent bands and link
                 your reasoning to specific evidence from the essay.
 
-                Scores given by expert:
+                Source dataset scores (not independently certified examiner labels):
                 {criteria_scores}
 
                 For EACH criterion output EXACTLY 3 bullet points:
@@ -64,6 +63,11 @@ class PandaInsightGenerator(PandaModel):
                 - Evidence:
                 - Why not higher (score + 1):
                 - Why not lower (score - 1):
+
+                Original task:
+                {task_prompt if task_prompt else 'Not supplied; Task Response cannot be checked against the original task.'}
+
+                A source score of 0 is retained as 0; absent band-0 descriptors must not be replaced by band 1.
 
                 Essay:
                 {essay}
@@ -75,16 +79,21 @@ class PandaInsightGenerator(PandaModel):
                 """
 
     def retrieve_insights(self, essays: np.ndarray, scores: np.ndarray,
-                          num_insights: int = 1, batch_size=12) -> None:
+                          num_insights: int = 1, batch_size=12, submissions=None) -> None:
         """
         """
+        if len(essays) != len(scores) or (submissions is not None and len(submissions) != len(essays)):
+            raise ValueError("Essays, scores and submission records must align")
+        if submissions is not None and len({row['essay_id'] for row in submissions}) != len(submissions):
+            raise ValueError("Submission essay IDs must be unique")
         for i in range(0, len(essays), batch_size):
             batch_essays = essays[i:i+batch_size]
             batch_scores = scores[i:i+batch_size]
             batch_prompts = []
             torch.cuda.empty_cache()
-            for essay, score in zip(batch_essays, batch_scores):
-                prompt = self.build_insight_prompt(essay, score)
+            for offset, (essay, score) in enumerate(zip(batch_essays, batch_scores)):
+                task = submissions[i + offset]['task_prompt'] if submissions is not None else None
+                prompt = self.build_insight_prompt(essay, score, task_prompt=task)
                 message = [{"role": "user", "content": prompt}]
                 text = self.tokenizer.apply_chat_template(
                     message,
@@ -119,6 +128,14 @@ class PandaInsightGenerator(PandaModel):
                 responses = decoded[num_insights*j:num_insights*(j+1)]
                 cleaned = [r.split("### Answer:")[-1].strip() for r in responses]
                 batch_results.append([batch_essays[j]] + cleaned)
+            if submissions is not None:
+                records = []
+                for offset, values in enumerate(batch_results):
+                    record = submissions[i + offset]
+                    records.append({**record, **dict(zip(PUBLIC_CRITERION_IDS, map(float, batch_scores[offset]))),
+                                    **{f'insight_{k}': v for k, v in enumerate(values[1:], 1)}})
+                pd.DataFrame(records).to_csv(insights_path, mode='a', header=not file_exists, index=False)
+                continue
             self.save_panda_insights(
                 batch_results,
                 save_path=insights_path,
