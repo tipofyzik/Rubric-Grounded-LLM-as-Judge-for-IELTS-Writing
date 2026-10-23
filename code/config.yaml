@@ -1,5 +1,5 @@
 stage_switch:
-  transform_datasets: 1
+  transform_datasets: 0
   analyze_data: 1
   train_custom_regressor: 0
   fine_tune_llm: 0
@@ -21,3 +21,6 @@ model:
   token: ""
 inference:
   runs: 0
+evaluation:
+  sample_size: null # null uses the entire prepared source test
+  seed: 42

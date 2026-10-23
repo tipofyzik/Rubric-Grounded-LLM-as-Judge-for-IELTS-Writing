@@ -14,6 +14,7 @@ from .PandaModel import PandaModel
 from ..criteria import format_rubric, format_score_schema
 from ..paths import PATHS
 from ..data.preparation import text_hash
+from ..data.experiment import validate_reference_corpus
 from ..data.runtime import Submission, submission_text
 
 
@@ -31,10 +32,14 @@ class PandaRetrievalEvaluator(PandaModel):
         """
         self.panda_insights = pd.read_csv(path)
 
-    def build_retrieval_index(self, essays: np.ndarray | pd.DataFrame):
+    def build_retrieval_index(self, essays: np.ndarray | pd.DataFrame, *, experiment_manifest=None):
         """
         Build embedding index for retrieval.
         """
+        if experiment_manifest is not None:
+            if not isinstance(essays, pd.DataFrame):
+                raise ValueError("Experiment retrieval requires identified train rows")
+            validate_reference_corpus(essays, experiment_manifest)
         self.corpus_frame = None
         if isinstance(essays, pd.DataFrame):
             frame = essays.copy()

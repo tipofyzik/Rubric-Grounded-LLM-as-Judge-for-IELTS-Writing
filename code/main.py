@@ -1,6 +1,8 @@
 """Run explicitly enabled research stages against a verified local Parquet release."""
 
 from pathlib import Path
+import json
+from uuid import uuid4
 
 import yaml
 
@@ -8,6 +10,7 @@ from ielts_judge.paths import PATHS
 from ielts_judge.criteria import CRITERION_IDS
 from ielts_judge.data.DatasetTransformer import DatasetTransformer
 from ielts_judge.data.preparation import legacy_labels
+from ielts_judge.data.experiment import prepare_experiment
 from ielts_judge.data.runtime import (
     convert_to_llm_dataset,
     export_reference,
@@ -34,17 +37,15 @@ def load_data(config):
     )
 
 
-def main():
+def main(*, prepare_only=False, selection_manifest=None, run_directory=None):
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     switch = config["stage_switch"]
-    train, test, manifest = load_data(config)
+    train, test_pool, manifest = load_data(config)
     print(
-        f"Verified Parquet: train={len(train):,}, test={len(test):,}; source={config.get('dataset', {}).get('source', 'combined')}"
+        f"Verified Parquet: train={len(train):,}, test pool={len(test_pool):,}; source={config.get('dataset', {}).get('source', 'combined')}"
     )
     release = Path(PATHS["datasets"]["prepared"])
     if switch.get("analyze_data"):
-        import json
-
         print((release / "audit.json").read_text(encoding="utf-8"))
         profiles = json.loads(
             (release / "score_profile_counts.json").read_text(encoding="utf-8")
@@ -67,7 +68,25 @@ def main():
                 indent=2,
             )
         )
-    active = any(
+    if selection_manifest is not None and run_directory is not None:
+        raise ValueError("Use either --selection-manifest or --run-directory")
+    saved_path = (Path(run_directory) / "experiment_manifest.json" if run_directory is not None
+                  else Path(selection_manifest) if selection_manifest is not None else None)
+    saved = json.loads(saved_path.read_text(encoding="utf-8")) if saved_path is not None else None
+    test, experiment = prepare_experiment(
+        train, test_pool, config=config.get("evaluation"),
+        source=config.get("dataset", {}).get("source", "combined"), saved_manifest=saved,
+    )
+    if run_directory is None:
+        result_root = (Path(PATHS["results"]["dataset_runs"]) /
+                       train.attrs["manifest_sha256"][:12] / uuid4().hex)
+        result_root.mkdir(parents=True, exist_ok=False)
+        (result_root / "experiment_manifest.json").write_text(
+            json.dumps(experiment, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+    else:
+        result_root = Path(run_directory)
+    print(f"Experiment: full train/reference={len(train):,}; selected test={len(test):,}; {result_root}")
+    active = not prepare_only and any(
         switch.get(name)
         for name in (
             "train_custom_regressor",
@@ -84,10 +103,6 @@ def main():
         raise ValueError("Model stages require nonempty train and test splits")
     import numpy as np
 
-    result_root = (
-        Path(PATHS["results"]["dataset_runs"]) / train.attrs["manifest_sha256"][:12]
-    )
-    result_root.mkdir(parents=True, exist_ok=True)
     # Separate release outputs from historic CSV experiments.
     PATHS["results"].update(
         llm_hugging_face_responses=str(result_root / "responses"),
@@ -170,4 +185,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prepare-only", action="store_true", help="Save selection metadata without model stages")
+    parser.add_argument("--selection-manifest", type=Path, help="Replay a saved selection in a new run directory")
+    parser.add_argument("--run-directory", type=Path, help="Use an existing run and its saved selection")
+    args = parser.parse_args()
+    main(prepare_only=args.prepare_only, selection_manifest=args.selection_manifest, run_directory=args.run_directory)
