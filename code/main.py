@@ -7,7 +7,6 @@ from uuid import uuid4
 import yaml
 
 from ielts_judge.paths import PATHS
-from ielts_judge.criteria import CRITERION_IDS
 from ielts_judge.data.DatasetTransformer import DatasetTransformer
 from ielts_judge.data.preparation import legacy_labels
 from ielts_judge.data.experiment import prepare_experiment
@@ -90,6 +89,7 @@ def main(*, prepare_only=False, selection_manifest=None, run_directory=None):
         switch.get(name)
         for name in (
             "train_custom_regressor",
+            "predict_custom_regressor",
             "fine_tune_llm",
             "get_llm_predictions",
             "panda_evaluation",
@@ -118,22 +118,13 @@ def main(*, prepare_only=False, selection_manifest=None, run_directory=None):
     )
     train_records, test_records = submission_records(train), submission_records(test)
     y_train, y_test = legacy_labels(train), legacy_labels(test)
-    if switch.get("train_custom_regressor"):
-        from ielts_judge.aes.OrdinalRegression import OrdinalRegression
+    if switch.get("train_custom_regressor") and switch.get("predict_custom_regressor"):
+        raise ValueError("Choose AES training or bundle inference, not both")
+    if switch.get("train_custom_regressor") or switch.get("predict_custom_regressor"):
+        from ielts_judge.aes.training import run_aes
 
-        model = OrdinalRegression(num_classes=10, num_tasks=len(CRITERION_IDS))
-        band2idx = {i: i for i in range(10)}
-        encoded = model.ordinal_encode_multi(y_train, band2idx, 10)
-        model.fit(train.essay.tolist(), encoded)
-        predictions = model.predict(test.essay.tolist(), band2idx)
-        import pandas as pd
-
-        table = pd.DataFrame(
-            predictions, columns=[f"pred_{name}" for name in CRITERION_IDS]
-        )
-        table.insert(0, "essay_id", test.essay_id.to_numpy())
-        table["dataset_manifest"] = train.attrs["manifest_sha256"]
-        table.to_csv(result_root / "aes_predictions.csv", index=False)
+        run_aes(train, test, experiment, result_root, config=config.get("aes"),
+                train_model=bool(switch.get("train_custom_regressor")))
     if switch.get("fine_tune_llm"):
         from ielts_judge.llm.LLMFineTuner import LLMFineTuner
 
