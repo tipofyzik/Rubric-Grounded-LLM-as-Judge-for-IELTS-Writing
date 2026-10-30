@@ -1,0 +1,13 @@
+# This profile is independent of AES training and public judge generation settings.
+generator:
+  model_id: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  max_input_tokens: 4096
+  max_new_tokens: 1024
+  batch_size: 12
+  seed: 42
+  prompt_variant: simple_json
+embedding:
+  model_id: BAAI/bge-base-en-v1.5
+  revision: a5beb1e3e68b9ab74eb54cfd186867f64f240e1a
+  max_length: 512
