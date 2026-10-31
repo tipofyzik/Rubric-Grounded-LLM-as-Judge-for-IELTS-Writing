@@ -20,7 +20,10 @@ from peft import (
     prepare_model_for_kbit_training
 )
 
-from ..criteria import CRITERION_IDS, format_score_schema
+from ..criteria import CRITERION_IDS, PUBLIC_CRITERION_IDS, format_score_schema
+from ..prompts import JudgeContext, build_judge_messages, submission_parts
+from ..scores import parse_scores
+from .generation import generate_response
 from ..data.runtime import Submission, submission_text
 from ..paths import PATHS
 
@@ -267,54 +270,19 @@ class LLMFineTuner:
         for text, true_scores in zip(x_test, y_test):
 
             submission = text
-            text = submission_text(text)
-
-            prompt = f"""
-            ### Instruction:
-            Evaluate the essay and return ONLY JSON, no text explanation".
-
-            Return format:
-            {format_score_schema()}
-
-            ### Text:
-            {text}
-
-            ### Answer:
-            """
-
-            inputs = self.tokenizer(
-                prompt,
-                return_tensors="pt",
-                truncation=True,
-                max_length=self.max_len
-            ).to(self.model.device)
-
-            with torch.no_grad():
-
-                output = self.model.generate(
-                    **inputs,
-                    max_new_tokens=200,
-                    do_sample=False,
-                    temperature=0.0,
-                    eos_token_id=self.tokenizer.eos_token_id
-                )
-
-            generated_tokens = output[0, inputs["input_ids"].shape[1]:]
-            decoded = self.tokenizer.decode(
-                generated_tokens,
-                skip_special_tokens=True
+            task, essay = submission_parts(submission)
+            messages = build_judge_messages(task, essay, JudgeContext(include_rubric=False))
+            generation = generate_response(
+                self.model, self.tokenizer, messages, max_new_tokens=256,
+                generation_settings={"do_sample": False}, criterion_ids=PUBLIC_CRITERION_IDS,
             )
-
-            match = re.search(r"\{.*\}", decoded, flags=re.DOTALL)
-            if match:
-                answer_part = match.group(0)
-                try:
-                    pred = json.loads(answer_part)
-                except json.JSONDecodeError:
-                    pred = None
-            else:
-                answer_part = ""
-                pred = None
+            decoded = generation.raw_text
+            try:
+                pred = parse_scores(decoded)
+                answer_part = json.dumps(pred)
+            except ValueError:
+                pred, answer_part = None, ""
+            text = submission_text(submission)
 
             results.append({
                 "essay_id": submission.get('essay_id') if isinstance(submission, dict) else None,

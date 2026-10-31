@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Any, Mapping
+import time
 
 import torch
 
@@ -30,6 +31,7 @@ def generate_response(
     generation_settings: Mapping[str, Any],
     criterion_ids: tuple[str, ...] = CRITERION_IDS,
     input_token_limit: int | None = None,
+    deadline: float | None = None,
 ) -> GenerationResult:
     """Generate once using an already-loaded model, without truncating input.
 
@@ -54,11 +56,19 @@ def generate_response(
         eos_tokens = [eos_tokens]
     eos_tokens = eos_tokens or []
     blocker = JsonEosBlocker(tokenizer, input_length, eos_tokens, criterion_ids)
+    time_options = {}
+    if deadline is not None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Judge deadline expired before generation")
+        # HF max_time is checked between decoding steps, not during a native kernel.
+        time_options["max_time"] = remaining
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
             logits_processor=[blocker],
+            **time_options,
             **generation_settings,
         )
     completion = outputs[0, input_length:]
@@ -67,7 +77,9 @@ def generate_response(
     )
     count = int(completion.numel())
     last_token = int(completion[-1].item()) if count else None
-    if last_token is not None and last_token in eos_tokens:
+    if deadline is not None and time.monotonic() >= deadline:
+        stop_reason = "deadline"
+    elif last_token is not None and last_token in eos_tokens:
         stop_reason = "eos"
     elif count >= max_new_tokens:
         stop_reason = "max_new_tokens"

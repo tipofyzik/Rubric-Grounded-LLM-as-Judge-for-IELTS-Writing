@@ -61,16 +61,28 @@ class Judge:
         The later ScoringService owns parsing and score validation. Model/GPU
         failures propagate to that caller without retries or score imputation.
         """
+        self.registry.require_enabled(model_key)
+        messages = build_judge_messages(task_prompt, essay, context)
+        return self.predict_messages(model_key=model_key, messages=messages)
+
+    def count_input_tokens(self, messages: list[dict[str, str]]) -> int:
+        """Count exactly the chat rendering used by generate_response, without truncation."""
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        return int(self.tokenizer(text, return_tensors="pt", add_special_tokens=False)["input_ids"].shape[1])
+
+    def predict_messages(self, *, model_key: str, messages: list[dict[str, str]],
+                         deadline: float | None = None) -> dict:
+        """Generate from the already-budgeted prompt; loading and GPU remain runtime-owned."""
         profile = self.registry.require_enabled(model_key)
         if profile.key != self.profile.key:
             raise ValueError(f"Judge has {self.profile.key} loaded, not {model_key}.")
-        messages = build_judge_messages(task_prompt, essay, context)
         generation = generate_response(
             self.model, self.tokenizer, messages,
             max_new_tokens=profile.max_new_tokens,
             generation_settings=profile.generation_config,
             criterion_ids=PUBLIC_CRITERION_IDS,
             input_token_limit=profile.context_budget - profile.max_new_tokens,
+            deadline=deadline,
         )
         return {
             **asdict(generation), "model_key": profile.key,

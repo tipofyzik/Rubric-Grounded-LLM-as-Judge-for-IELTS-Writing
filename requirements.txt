@@ -21,6 +21,10 @@ accelerate==1.13.0
 requests==2.32.5
 openai==2.23.0
 
+# ScoringService prompt -> judge -> parser orchestration; cloud tracing disabled.
+langchain-core==1.7.3
+langsmith==0.14.16
+
 # Required only for QLoRA; not installed in the audited environment.
 # No installed version is available to pin. Verify compatibility on the target GPU.
 # bitsandbytes

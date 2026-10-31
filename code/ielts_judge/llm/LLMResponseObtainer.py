@@ -1,14 +1,15 @@
 import pandas as pd
 import torch
 import json
-import re
 import os
 from dataclasses import asdict
 
 from ..paths import PATHS
-from ..criteria import format_score_schema
+from ..criteria import PUBLIC_CRITERION_IDS
+from ..prompts import CONTEXT_SETUPS, JudgeContext, build_judge_messages, submission_parts
+from ..scores import parse_scores
 from .generation import generate_response
-from ..data.runtime import Submission, SubmissionBatch, evaluation_samples, prediction_record, submission_text
+from ..data.runtime import Submission, SubmissionBatch, evaluation_samples, prediction_record
 
 
 
@@ -16,7 +17,7 @@ class LLMResponseObtainer:
     """
     A class to obtain responses from LLMs for essay evaluation.
     """
-    def __init__(self, SERVICE_TOKEN: str, max_new_tokens: int = 200) -> None:
+    def __init__(self, SERVICE_TOKEN: str, max_new_tokens: int = 256, *, setup="base", context_provider=None) -> None:
         """
         Initialize the LLMResponseObtainer with the necessary service token.
 
@@ -27,6 +28,9 @@ class LLMResponseObtainer:
         Returns:
             None
         """
+        if setup not in CONTEXT_SETUPS:
+            raise ValueError("Unknown context setup")
+        self.setup, self.context_provider = setup, context_provider
         self.SERVICE_TOKEN = SERVICE_TOKEN
         self.max_new_tokens = max_new_tokens
         self.last_generation: dict = {}
@@ -57,57 +61,28 @@ class LLMResponseObtainer:
         )
         self.model.eval()
 
+    def _messages(self, submission):
+        task, essay = submission_parts(submission)
+        rubric, references, aes = CONTEXT_SETUPS[self.setup]
+        supplied = self.context_provider(submission) if self.context_provider is not None else JudgeContext()
+        if aes and not supplied.aes_priors:
+            raise ValueError("AES setup needs real preliminary scores")
+        context = JudgeContext(supplied.aes_priors if aes else {},
+                               supplied.references if references else (), rubric)
+        return build_judge_messages(task, essay, context)
+
     def __evaluate_essay_locally(self, essay: Submission) -> dict | None:
-        """
-        Evaluate an essay locally using the loaded model.
-
-        Args:
-            essay (str): The essay to evaluate.
-
-        Returns:
-            dict|None: The evaluation results or None if an error occurs.
-        """
-        essay = submission_text(essay)
         self.last_generation = {}
-        prompt = f"""
-        ### Instruction:
-        Evaluate the essay and return ONLY JSON, no text explanation.
-        Scores range from 0 to 9 with step 0.5.
-        
-        Return format:
-        {format_score_schema()}
-        
-        ### Text:
-        {essay}
-        
-        ### Answer:
-        """
-        messages = [
-            {"role": "system", "content": "You are an IELTS examiner. Return ONLY valid JSON."},
-            {"role": "user", "content": prompt}
-        ]
-        
         generation = generate_response(
-            self.model, self.tokenizer, messages,
-            max_new_tokens=self.max_new_tokens,
-            generation_settings={"temperature": 0.2, "do_sample": True},
+            self.model, self.tokenizer, self._messages(essay),
+            max_new_tokens=self.max_new_tokens, generation_settings={"do_sample": False},
+            criterion_ids=PUBLIC_CRITERION_IDS,
         )
-        response = generation.raw_text
-        token_count = generation.generated_tokens
-        stop_reason = generation.stop_reason
         self.last_generation = {**asdict(generation), "parse_error": None}
         try:
-            object_start = response.find("{")
-            if object_start < 0:
-                raise ValueError("JSON object was not found in the generated answer.")
-            answer, _ = json.JSONDecoder().raw_decode(response[object_start:])
-            if not isinstance(answer, dict):
-                raise ValueError("Generated JSON must be an object.")
-            return answer
-        except ValueError as error:
-            self.last_generation["parse_error"] = str(error)
-            print(f"JSON incomplete or invalid; tokens={token_count}/{self.max_new_tokens}; "
-                  f"stop={stop_reason}: {response}")
+            return parse_scores(generation.raw_text)
+        except ValueError:
+            self.last_generation["parse_error"] = "invalid_integer_scores"
             return None
 
     def get_response_locally(self, number_of_evaluations: int, 
@@ -159,31 +134,13 @@ class LLMResponseObtainer:
         Returns:
             dict|None: The evaluation results or None if an error occurs.
         """
-        essay = submission_text(essay)
-        prompt = f"""
-        ### Instruction:
-        Evaluate the essay and return ONLY JSON, no text explanation.
-        Scores range from 0 to 9 with step 0.5.
-
-        Return format:
-        {format_score_schema()}
-
-        ### Text:
-        {essay}
-
-        ### Answer:
-        """
         headers = {"Authorization": f"Bearer {self.SERVICE_TOKEN}"}
-        messages = [
-            {"role": "system", "content": "You are an IELTS examiner. Return ONLY valid JSON."},
-            {"role": "user", "content": prompt}
-        ]
+        messages = self._messages(essay)
         payload = {
             "inputs": messages,
             "parameters": {
-                "max_new_tokens": 200,
-                "temperature": 0.2,
-                "do_sample": True,
+                "max_new_tokens": self.max_new_tokens,
+                "do_sample": False,
                 "return_full_text": False
             }
         }
@@ -205,17 +162,9 @@ class LLMResponseObtainer:
             print("Неожиданный формат:", output)
             return None
 
-        match = re.search(r"\{[\s\S]*?\}", text)
-        if match:
-            answer = match.group(0)
-        else:
-            print("JSON не найден:", text)
-            return None
-
         try:
-            return json.loads(answer)
-        except json.JSONDecodeError:
-            print("Ошибка при декодировании:", answer)
+            return parse_scores(text)
+        except ValueError:
             return None
 
     def get_responses_huggin_face(self, model_url: str, number_of_evaluations: int, 
@@ -273,25 +222,15 @@ class LLMResponseObtainer:
             dict|None: The evaluation results or None if an error occurs.
         """
         from openai.types.chat import ChatCompletionMessageParam
-        essay = submission_text(essay)
-
-        messages: list[ChatCompletionMessageParam] = [
-            {
-                "role": "system",
-                "content": (
-                    "You are an IELTS examiner. Return ONLY valid JSON using this schema: "
-                    f"{format_score_schema()}"
-                ),
-            },
-            {"role": "user", "content": essay}
-        ]
+        from typing import cast
+        messages = cast(list[ChatCompletionMessageParam], self._messages(essay))
 
         try:
             response = self.client.chat.completions.create(
                 model="meta-llama/Llama-3.2-3B-Instruct",
                 messages=messages,
-                max_tokens=200,
-                temperature=0.2
+                max_tokens=self.max_new_tokens,
+                temperature=0.0
             )
         except Exception as e:
             print("Ошибка запроса:", e)
@@ -300,18 +239,11 @@ class LLMResponseObtainer:
         text = response.choices[0].message.content
         if text is None:
             return None
-        match = re.search(r"\{[\s\S]*?\}", text)
-        if not match:
-            print("JSON не найден:", text)
+        try:
+            return parse_scores(text)
+        except ValueError:
             return None
 
-        answer = match.group(0)
-        try:
-            return json.loads(answer)
-        except json.JSONDecodeError:
-            print("Ошибка при декодировании:", answer)
-            return None
-    
     def get_responses_openai(self, model_url: str, number_of_evaluations: int, 
                                   test_dataset: SubmissionBatch) -> None:
         """

@@ -9,4 +9,4 @@ models:
     max_new_tokens: 256
     generation_config:
       do_sample: false
-    output_schema_version: scores-v1
+    output_schema_version: scores-integer-v2

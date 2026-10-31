@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 
 import numpy as np
 import pandas as pd
@@ -11,11 +10,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 
 from .PandaModel import PandaModel
-from ..criteria import format_rubric, format_score_schema
+from ..criteria import PUBLIC_CRITERION_IDS
+from ..prompts import JudgeContext, ReferenceContext, build_judge_messages, submission_parts
+from ..scores import parse_scores, public_scores
+from ..llm.generation import generate_response
 from ..paths import PATHS
 from ..data.preparation import text_hash
 from ..data.experiment import validate_reference_corpus
-from ..data.runtime import Submission, submission_text
+from ..data.runtime import Submission
 
 
 class PandaRetrievalEvaluator(PandaModel):
@@ -43,7 +45,7 @@ class PandaRetrievalEvaluator(PandaModel):
         self.corpus_frame = None
         if isinstance(essays, pd.DataFrame):
             frame = essays.copy()
-            if not frame['status'].eq('accepted').all() or not frame['split'].eq('train').all():
+            if not bool(frame['status'].eq('accepted').all()) or not bool(frame['split'].eq('train').all()):
                 raise ValueError("Reference corpus must contain only accepted train rows")
             if frame['essay_id'].duplicated().any() or frame['essay_hash'].duplicated().any():
                 raise ValueError("Reference IDs and essay hashes must be unique")
@@ -112,81 +114,42 @@ class PandaRetrievalEvaluator(PandaModel):
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     def build_evaluation_messages(self, essay: Submission, similar_insights) -> list[dict[str, str]]:
-        """Build the legacy retrieval prompt without models or index access."""
-        essay = submission_text(essay)
-        insights_text = "\n\n".join([
-            f"Insight {i+1}:\n{ins}"
-            for i, ins in enumerate(similar_insights)
-        ])
-        
-        prompt = f"""
-        ### Instruction:
-        You are an IELTS writing evaluator.
-        Below are insights from similar essays and their evaluations:
-
-        {insights_text}
-
-        Now evaluate the following essay using given insights and return ONLY JSON, no text explanation.
-        Scores range from 0 to 9 with step 0.5.
-
-        Return format:
-        {format_score_schema()}
-
-        Essay:
-        {essay}
-
-        ### Answer:
-        """
-        
-        return [
-            {
-                "role": "system",
-                "content": (
-                    "You are an IELTS examiner. Return ONLY valid JSON.\n"
-                    "Consider requirements below for each IELTS criterion while evaluating the essay.\n\n"
-                    f"{format_rubric()}"
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ]
+        """Use the common prompt with identified source scores and original insights."""
+        task, text = submission_parts(essay)
+        references = []
+        for item in similar_insights:
+            if isinstance(item, ReferenceContext):
+                references.append(item)
+                continue
+            identity = item.get("essay_id")
+            frame = getattr(self, "corpus_frame", None)
+            if frame is None or identity is None:
+                raise ValueError("Offline references require identified source scores")
+            matches = frame.loc[frame.essay_id == identity]
+            if len(matches) != 1:
+                raise ValueError("Reference ID does not match the train corpus")
+            row = matches.iloc[0]
+            labels = public_scores({key: row[key] for key in PUBLIC_CRITERION_IDS})
+            explanation = item.get("insights")
+            if not isinstance(explanation, str):
+                explanation = "\n".join(str(value) for key, value in item.items() if key.startswith("insight_"))
+            references.append(ReferenceContext(str(identity), str(row.task_prompt), labels, explanation))
+        return build_judge_messages(task, text, JudgeContext(references=tuple(references)))
 
     def evaluate_essay(self, essay: Submission, num_similar: int = 1):
-        """Evaluate essay using retrieved insights in the offline workflow."""
-        results = []
+        """Offline inference shares messages, completion slicing, EOS and score parsing."""
         _, similar_insights = self.find_similar_essays(essay, num_similar=num_similar)
-        message = self.build_evaluation_messages(essay, similar_insights)
-        text = self.tokenizer.apply_chat_template(
-            message,
-            tokenize=False,
-            add_generation_prompt=True
+        generation = generate_response(
+            self.model, self.tokenizer, self.build_evaluation_messages(essay, similar_insights),
+            max_new_tokens=256, generation_settings={"do_sample": False},
+            criterion_ids=PUBLIC_CRITERION_IDS,
         )
-        inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
-        
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=200,
-                temperature=0.2,
-                do_sample=True
-            )
-        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        response = response.split("### Answer:")[-1].strip()
-        match = re.search(r"\{[\s\S]*?\}", response)
-        if match:
-            answer = match.group(0)
-            results.append(answer)
-            self.save_results_json(
-                answer, save_path=PATHS["results"]["panda_evaluations"]
-            )
-        else:
-            print("JSON не найден:", response)
-            return None
-        
         try:
-            return json.loads(answer)
-        except json.JSONDecodeError:
-            print("Ошибка при декодировании:", answer)
+            result = parse_scores(generation.raw_text)
+        except ValueError:
             return None
+        self.save_results_json(result, save_path=PATHS["results"]["panda_evaluations"])
+        return result
 
     def evaluate_llm(self, essays: np.ndarray, num_similar: int = 1):
         """

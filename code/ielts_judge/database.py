@@ -1,6 +1,8 @@
 """Supabase HTTPS/RPC transport, idempotent corpus ingestion and typed retrieval."""
 
 import math
+import re
+import time
 from urllib.parse import urlsplit
 
 import requests
@@ -8,7 +10,7 @@ import yaml
 
 from .criteria import PUBLIC_CRITERION_IDS
 from .data.preparation import text_hash
-from .panda.artifacts import canonical, digest, insights, positive_int, scores, sha256
+from .panda.artifacts import canonical, digest, insights, parse_json, positive_int, scores, sha256
 from .panda.corpus import Corpus, vector
 from .prompts import ReferenceContext
 from .paths import PROJECT_ROOT
@@ -26,6 +28,24 @@ def retrieval_k():
 class RetrievalError(RuntimeError):
     """RPC transport, permissions, release or response failure; never an empty retrieval."""
 
+    def __init__(self, message, code="retrieval_failure", *, diagnostics=None):
+        super().__init__(message)
+        self.code = code
+        self.diagnostics = {}
+        supplied = diagnostics or {}
+        for name in ("http_status", "attempts"):
+            value = supplied.get(name)
+            if type(value) is int and ((name == "http_status" and 100 <= value <= 599)
+                                      or (name == "attempts" and 0 <= value <= 2)):
+                self.diagnostics[name] = value
+        database_code = supplied.get("database_code")
+        if isinstance(database_code, str) and re.fullmatch(r"(?:[A-Z0-9]{5}|PGRST[0-9]{3})", database_code):
+            self.diagnostics["database_code"] = database_code
+
+
+class EncodingError(RuntimeError):
+    """The query encoder failed before a database request was made."""
+
 
 class SupabaseRPC:
     def __init__(self, url, key, *, timeout=30):
@@ -38,25 +58,61 @@ class SupabaseRPC:
             raise ValueError("RPC timeout must be finite and positive")
         self.url, self.key, self.timeout = url.rstrip("/"), key, timeout
 
-    def call(self, function, parameters):
+    def call(self, function, parameters, *, timeout=None):
         if function not in ("panda_begin", "panda_import", "panda_finalize", "panda_match"):
             raise ValueError("Unknown PANDA RPC function")
         headers = {"apikey": self.key, "Content-Type": "application/json"}
         # New sb_publishable_/sb_secret_ keys are API keys, not Bearer JWTs.
         if not self.key.startswith("sb_"):
             headers["Authorization"] = "Bearer " + self.key
-        try:
-            response = requests.post(self.url + "/rest/v1/rpc/" + function, headers=headers,
-                                     data=canonical(parameters).encode("utf-8"), timeout=self.timeout, allow_redirects=False)
-        except requests.RequestException as error:
-            raise RetrievalError("Supabase RPC network/timeout failure") from error
-        if response.status_code != 200:
-            raise RetrievalError(f"Supabase RPC {function} failed: HTTP {response.status_code}")
-        try:
-            from .panda.artifacts import parse_json
-            return parse_json(response.text)
-        except ValueError as error:
-            raise RetrievalError("Supabase RPC returned invalid JSON") from error
+        if timeout is not None and (type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0):
+            raise ValueError("RPC timeout must be finite and positive")
+        budget = min(self.timeout, timeout) if timeout is not None else self.timeout
+        deadline = time.monotonic() + budget
+        payload = canonical(parameters).encode("utf-8")
+        # Only the read RPC may recover from a completed transient HTTP failure.
+        attempts = 2 if function == "panda_match" else 1
+        for attempt in range(1, attempts + 1):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RetrievalError("Supabase RPC time budget expired", "retrieval_timeout",
+                                     diagnostics={"attempts": attempt - 1})
+            try:
+                response = requests.post(self.url + "/rest/v1/rpc/" + function, headers=headers,
+                                         data=payload, timeout=remaining, allow_redirects=False)
+            except requests.Timeout as error:
+                raise RetrievalError("Supabase RPC network/timeout failure", "retrieval_timeout",
+                                     diagnostics={"attempts": attempt}) from error
+            except requests.RequestException as error:
+                raise RetrievalError("Supabase RPC network/timeout failure",
+                                     diagnostics={"attempts": attempt}) from error
+            try:
+                diagnostics: dict[str, object] = {"http_status": response.status_code, "attempts": attempt}
+                if response.status_code == 200:
+                    try:
+                        return parse_json(response.text)
+                    except ValueError as error:
+                        raise RetrievalError("Supabase RPC returned invalid JSON", "retrieval_invalid_response",
+                                             diagnostics=diagnostics) from error
+                try:
+                    body = parse_json(response.text)
+                except ValueError:
+                    body = {}
+                database_code = body.get("code") if isinstance(body, dict) else None
+                diagnostics["database_code"] = database_code
+                message = body.get("message", "") if isinstance(body, dict) else ""
+                code = "retrieval_failure"
+                if database_code == "57014":
+                    code = "retrieval_timeout" if isinstance(message, str) and "statement timeout" in message.lower() else "retrieval_cancelled"
+                elif response.status_code == 429:
+                    code = "retrieval_quota"
+                if (response.status_code in (500, 502, 503, 504) and code != "retrieval_cancelled"
+                        and attempt < attempts and time.monotonic() < deadline):
+                    continue
+                raise RetrievalError(f"Supabase RPC {function} failed: HTTP {response.status_code}", code,
+                                     diagnostics=diagnostics)
+            finally:
+                response.close()
 
 
 def import_corpus(corpus, rpc, *, batch_size=50):
@@ -103,7 +159,7 @@ class ReferenceRetriever:
             raise ValueError("Encoder/corpus profile mismatch")
         self.rpc, self.manifest, self.encoder = rpc, manifest, encoder
 
-    def retrieve(self, essay, *, essay_id=None, k=None, threshold=None):
+    def retrieve(self, essay, *, essay_id=None, k=None, threshold=None, timeout=None):
         if k is None:
             k = retrieval_k()
         if not isinstance(essay, str) or not essay.strip():
@@ -115,14 +171,29 @@ class ReferenceRetriever:
         if threshold is not None and (isinstance(threshold, bool) or not isinstance(threshold, (int, float))
                                       or not math.isfinite(threshold) or not -1 <= threshold <= 1):
             raise ValueError("Similarity threshold must be finite and within -1..1")
-        values, lengths = self.encoder.encode([essay])
-        if len(values) != 1 or len(lengths) != 1:
-            raise ValueError("Query encoder alignment failure")
+        started = time.monotonic()
+        try:
+            values, lengths = self.encoder.encode([essay])
+            if len(values) != 1 or len(lengths) != 1:
+                raise ValueError("Query encoder alignment failure")
+            query_vector = vector(values[0]).tolist()
+            positive_int(lengths[0], "query token length")
+        except Exception as error:
+            raise EncodingError("Query encoder failed") from error
+        encoding_seconds = time.monotonic() - started
         query_hash = text_hash(essay)
+        options = {}
+        if timeout is not None:
+            remaining = timeout - encoding_seconds
+            if remaining <= 0:
+                raise RetrievalError("Retrieval deadline expired after encoding", "retrieval_timeout")
+            options["timeout"] = remaining
+        rpc_started = time.monotonic()
         result = self.rpc.call("panda_match", {"p_corpus_id": self.manifest["corpus_id"],
             "p_embedding_profile_sha256": self.manifest["embedding_profile_sha256"],
-            "p_query_embedding": vector(values[0]).tolist(), "p_query_hash": query_hash,
-            "p_query_id": essay_id, "p_match_count": k, "p_threshold": threshold})
+            "p_query_embedding": query_vector, "p_query_hash": query_hash,
+            "p_query_id": essay_id, "p_match_count": k, "p_threshold": threshold}, **options)
+        rpc_seconds = time.monotonic() - rpc_started
         try:
             if not isinstance(result, dict) or result.get("corpus_id") != self.manifest["corpus_id"] or result.get("embedding_profile_sha256") != self.manifest["embedding_profile_sha256"] or result.get("count") != self.manifest["count"]:
                 raise ValueError("RPC corpus/version mismatch")
@@ -160,4 +231,5 @@ class ReferenceRetriever:
         return {"status": "ok" if references else "retrieval_empty", "references": tuple(references),
                 "corpus_id": self.manifest["corpus_id"], "similarities": similarities,
                 "query_original_tokens": lengths[0], "query_used_tokens": min(lengths[0], self.encoder.profile["max_length"]),
-                "query_truncated": lengths[0] > self.encoder.profile["max_length"]}
+                "query_truncated": lengths[0] > self.encoder.profile["max_length"],
+                "encoding_seconds": encoding_seconds, "rpc_seconds": rpc_seconds}

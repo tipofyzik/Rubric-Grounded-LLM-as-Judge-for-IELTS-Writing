@@ -8,10 +8,10 @@ import math
 import re
 
 import yaml
+from .scores import OUTPUT_SCHEMA_VERSION
 
 
 REGISTRY_PATH = Path(__file__).resolve().parents[1] / "resources" / "model_registry.yaml"
-OUTPUT_SCHEMA_VERSION = "scores-v1"
 
 
 @dataclass(frozen=True)
