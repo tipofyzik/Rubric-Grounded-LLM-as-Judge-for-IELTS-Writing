@@ -6,6 +6,27 @@ This repository contains the official codebase, dataset preprocessing utilities,
 **Read the full thesis**
 </a>
 
+## Local Writing Task 2 demo
+
+The Gradio UI runs the accepted hybrid scoring service with local CPU
+AES/BGE, Supabase reference retrieval and the hosted Qwen judge. In the prepared
+workspace, start it with:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -B '.\code\app.py'
+```
+
+Open <http://127.0.0.1:7860>, select an editable example or enter your own Task and
+Essay, then select Evaluate. The UI returns four integer criterion scores,
+warnings and errors. This is an experimental demo, not an official IELTS result.
+The [runbook](code/stage6_runbook.md) covers dependencies, access settings,
+input limits and verification. Accepted local artifacts are required; the
+portable hosted deployment is a later stage. The language dropdown supports
+English, Russian and German; Task and Essay inputs remain in English.
+The project environment is `.venv`, runtime settings are in `.env`, and local
+model files use `.cache/huggingface`. VS Code's **IELTS Writing UI** configuration
+starts the same app with the project interpreter.
+
 ## Local dataset preparation
 
 The main code prepares both local Chillies CSVs and Writing9 JSONLs into a shared,
