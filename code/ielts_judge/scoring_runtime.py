@@ -13,7 +13,8 @@ from .scoring import ScoringService
 
 
 def load_scoring_service(judge, *, aes_release, corpus_release, project_root,
-                         supabase_url, supabase_key, setup="rubric_panda_aes", limits=None):
+                         supabase_url, supabase_key, setup="rubric_panda_aes", limits=None,
+                         cpu_worker=None):
     """Load once on CPU, preserving the trained AES and pinned embedding profile."""
     if setup not in CONTEXT_SETUPS:
         raise ValueError("Unknown context setup")
@@ -30,7 +31,7 @@ def load_scoring_service(judge, *, aes_release, corpus_release, project_root,
         digest = hashlib.sha256((bundle_path / "manifest.json").read_bytes()).hexdigest()
         if digest != release["bundle_manifest_sha256"]:
             raise ValueError("AES release manifest hash mismatch")
-        aes = load_bundle(bundle_path, device="cpu")
+        aes = cpu_worker.load_aes(bundle_path) if cpu_worker is not None else load_bundle(bundle_path, device="cpu")
         versions["aes_bundle_manifest_sha256"] = digest
     if use_references:
         release = json.loads(Path(corpus_release).read_text(encoding="utf-8"))
@@ -38,7 +39,7 @@ def load_scoring_service(judge, *, aes_release, corpus_release, project_root,
         manifest = corpus.manifest
         if release["corpus_id"] != manifest["corpus_id"] or release["count"] != manifest["count"]:
             raise ValueError("Corpus release differs from the verified artifact")
-        encoder = Encoder(manifest["embedding"], device="cpu")
+        encoder = cpu_worker.load_encoder(manifest["embedding"]) if cpu_worker is not None else Encoder(manifest["embedding"], device="cpu")
         retriever = ReferenceRetriever(SupabaseRPC(supabase_url, supabase_key), manifest, encoder)
         versions.update(corpus_id=manifest["corpus_id"],
                         embedding_profile_sha256=manifest["embedding_profile_sha256"],

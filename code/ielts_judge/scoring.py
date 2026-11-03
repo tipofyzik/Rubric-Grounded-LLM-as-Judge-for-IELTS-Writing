@@ -304,6 +304,11 @@ class ScoringService:
                     "stop_reason",
                 )
             }
+            for key in ("gpu_work_seconds", "gpu_peak_allocated_mib", "worker_peak_rss_mib",
+                        "allocation_and_transport_seconds", "container_memory_mib",
+                        "container_memory_peak_mib"):
+                if key in generation:
+                    metadata["generation"][key] = generation[key]
             result.update(status="ok", scores=request["scores"], warnings=warnings)
         except Exception as error:
             if isinstance(error, ScoringError):
