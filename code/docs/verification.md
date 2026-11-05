@@ -27,6 +27,12 @@ A passing local run does not establish remote CI success. Cite a GitHub Actions
 run URL and its exact commit when reporting remote CI; a branch name alone is
 insufficient. This portable selection is not the entire local suite.
 
+The [verified GitHub Actions run](https://github.com/tipofyzik/Rubric-Grounded-LLM-as-Judge-for-IELTS-Writing/actions/runs/42132015393)
+executed 89 tests with zero failures, errors or skips for commit
+`dde73bb360a3f9ef23446a532643f01dd745e6d0`. Its downloaded `portable-checks`
+artifact contains the test log and machine-readable summary. The prepared
+workspace's separate main suite passed all 213 tests on 6 November 2026.
+
 ## Prepared-workspace regression checks
 
 ```powershell
@@ -38,6 +44,14 @@ These checks additionally use local source/release fixtures, historical notebook
 builders and UI dependencies. Retain their logs and record any skip explicitly.
 A clean public checkout does not provide those ignored inputs. Do not present
 the portable workflow as executing this full prepared-workspace coverage.
+
+The historical notebook's plotting regression uses integer prepared inputs and
+the shared reporter's new output directory. Historical fractional reference
+tables are explicitly rejected without rounding and retained unchanged. This
+keeps historical fixtures separate from the current integer-score benchmark.
+The prepared-workspace Kaggle suite completed 40 tests: 39 passed and one
+directory-symlink check was skipped because this Windows host does not permit
+creating that symlink. This suite is not run by the portable workflow.
 
 ## Real-model evidence
 

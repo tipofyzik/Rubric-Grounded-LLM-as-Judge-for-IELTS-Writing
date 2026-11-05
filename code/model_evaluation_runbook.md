@@ -43,7 +43,8 @@ The notebook creates a new venv inheriting the host CUDA PyTorch. Evaluation
 dependencies are installed into that environment with an exact constraint for
 the host torch version. The model command runs in a fresh Python subprocess.
 The actual Python/package/CUDA/device versions are saved with the experiment.
-Kaggle GPU compatibility still requires the first real notebook pilot.
+The accepted Qwen GPU pilot and full baseline have completed. A changed model
+or execution environment needs its own compatibility check.
 
 ## Experiment selection
 
@@ -147,7 +148,7 @@ report:
 
 Numeric tables include predictions, per-run metrics, summaries, formatted
 display values, coverage, failure counts, calibration/bias groups, fixed-bin
-errors, confusion counts, reference distributions, ablations, repeatability
+errors, confusion counts, reference distributions, prompt comparisons, repeatability
 and common valid IDs. Quality comparisons/AES lines use IDs valid in **every**
 planned model/setup/repeat, so the baseline is evaluated on the same population.
 Own-valid metrics are also exported. Each denominator is explicit. Incomplete
@@ -205,9 +206,11 @@ doubles in persistence tests are explicitly not a real Qwen quality benchmark.
 
 The Kaggle GPU pilot and full 1,635-essay comparison (9,810 judge jobs, one repeat)
 have been completed and analysed. Current results, raw-run locations and remaining
-protocol/repeatability/robustness/reporting work are recorded in
-[model evaluation context](../context/model_evaluation_context.md) and the
-[full-run analysis](../results/stage8/analysis/2026-11-04-full1635/analysis.md).
+protocol/repeatability/robustness/reporting work are recorded in the
+[protocol](docs/model_evaluation_protocol.md), [baseline report](docs/model_evaluation_report.md)
+and [verification guide](docs/verification.md). The prepared workspace additionally
+retains `context/model_evaluation_context.md` and
+`results/stage8/analysis/2026-11-04-full1635/analysis.md`.
 Plot-only changes can use report mode with the saved full run; another inference
 run is not required. Public service latency/queue/restart/quota checks remain
 **deferred by the user's decision** and are not run by this workflow.

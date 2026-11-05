@@ -102,3 +102,9 @@ code/docs/*
 !code/docs/model_evaluation_protocol.md
 !code/docs/model_evaluation_report.md
 !code/docs/verification.md
+!kaggle/KaggleNotebook.ipynb
+!kaggle/RunConfig.yaml
+!kaggle/build_bundle.py
+!kaggle/run_checks.py
+!kaggle/tests/TestKaggleNotebook.py
+!code/**/__init__.py
