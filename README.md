@@ -26,13 +26,50 @@ workspace, start it with:
 Open <http://127.0.0.1:7860>, select an editable example or enter your own Task and
 Essay, then select Evaluate. The UI returns four integer criterion scores,
 warnings and errors. This is an experimental demo, not an official IELTS result.
-The [runbook](code/stage6_runbook.md) covers dependencies, access settings,
+The [runbook](code/local_app_runbook.md) covers dependencies, access settings,
 input limits and verification for the local reserve. Accepted local artifacts
 are required for that path. The language dropdown supports
 English, Russian and German; Task and Essay inputs remain in English.
 The project environment is `.venv`, runtime settings are in `.env`, and local
 model files use `.cache/huggingface`. VS Code's **IELTS Writing UI** configuration
 starts the same app with the project interpreter.
+
+The current [file and data inventory](code/docs/project_files.md) explains which
+source datasets, prepared releases and runtime artifacts must be retained, and
+how the two [database migrations](code/migrations/README.md) work together.
+
+## Standalone model evaluation
+
+Model quality is evaluated separately in a **new Kaggle notebook and a new private
+Dataset**. The dedicated configuration selects models, six context setups,
+evaluation IDs/repeats and plot types. AES is an ID-aligned transformer baseline
+with its numeric metric in comparison legends. Reports include MAE/QWK, exact and
+within-one-band accuracy, correlations, coverage/failures, calibration/bias,
+integer error distributions, confusion matrices and repeatability. Smoothing and
+half-band accuracy are not used.
+
+Build the new verified input package and matching pinned notebook with:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -B code/tools/build_evaluation_kaggle.py
+```
+
+See the [model evaluation runbook](code/model_evaluation_runbook.md) for the new
+Dataset/notebook, configurable figures, pilot, append-only resume and exports.
+Each experiment, report and export gets a new directory/name. Existing notebooks,
+datasets and accepted releases are preserved. The full Kaggle benchmark has been
+completed: 1,635 essays, 9,810 valid Qwen jobs, six setups and one repeat.
+AES achieves macro MAE **0.979511** / QWK **0.607192**; the full hybrid achieves
+**0.981040** / **0.606128**, copying 6,536 of 6,540 AES criterion scores.
+No Qwen setup improves AES on MAE or QWK for any criterion. Repeatability and
+robustness experiments remain pending; **public service evaluation is deferred**.
+
+See the [evaluation protocol](code/docs/model_evaluation_protocol.md),
+[baseline report](code/docs/model_evaluation_report.md) and
+[verification scope](code/docs/verification.md). The previously used test pool
+is not an untouched holdout; source labels are not certified examiner marks,
+and some train/test questions overlap. Historical thesis results below use
+different data and settings and are separate from this benchmark.
 
 ## Local dataset preparation
 
@@ -179,7 +216,13 @@ requires Pandas below 3, while the research environment uses Pandas 3. Deploy ea
 Space using its own README and requirements. Select the analysis environment as
 the Python interpreter in VS Code/Pylance so it can resolve these packages.
 
-## 📌 Abstract & Overview
+## Historical thesis study
+
+The following sections describe the earlier thesis experiments. Their datasets,
+fractional-score protocol, models and inference settings differ from the current
+integer-score demo benchmark above.
+
+### Abstract & Overview
 Automated Essay Scoring (AES) for standardized examinations like IELTS requires multi-criteria assessment strictly grounded in evaluation rubrics. This project investigates a hybrid evaluation framework using **Small Language Models (SLMs)** as judges. 
 
 The system integrates three core components:

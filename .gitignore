@@ -1,0 +1,104 @@
+# По умолчанию отслеживать только перечисленные файлы и код.
+*
+# !.gitignore
+!README.md
+!requirements.txt
+# !requirements-dev.txt
+# !pyrightconfig.json
+# !kaggle/
+# !kaggle/**
+# kaggle/artifacts/
+# kaggle/.cache/
+# kaggle/.venv/
+# kaggle/**/__pycache__/
+!code/
+!code/**
+
+# Локальное окружение и кеши Python.
+code/.venv/
+code/.env
+code/**/__pycache__/
+code/.pytest_cache/
+code/.ruff_cache/
+code/*.egg-info/
+
+# Файлы инициализации пакетов.
+code/**/__init__.py
+
+# Локальные данные, модели и результаты экспериментов.
+code/resources/datasets/
+code/resources/LLM evaluation/
+code/resources/AES models/
+code/resources/AES predictions/
+code/resources/panda insights/
+
+# Локальная заметка о рефакторинге.
+code/**/LLMEvaluatorRefactoringReview.md
+code/docs
+code/stage0_space
+code/stage1_space
+code/tests
+code/tools
+code/dataset
+code/docs
+code/resources/panda_comparison.json
+
+# Stage 4 implementation, instructions and reproducible checks.
+# !.gitignore
+# !code/docs/
+# code/docs/*
+# !code/docs/stage4_*.md
+# !code/tools/
+# code/tools/*
+# !code/tools/build_panda_kaggle.py
+# !code/tests/
+# code/tests/*
+# !code/tests/TestExperiment.py
+# !code/tests/TestPandaCorpus.py
+# !code/tests/TestDatabase.mjs
+
+# Project runtime configuration; secrets, environment and caches remain local.
+# !.env.example
+# !.vscode/
+# !.vscode/launch.json
+# !.vscode/settings.json
+.env
+.venv/
+.cache/
+code/local_app_runbook.md
+code/hugging_face_server_runbook.md
+code/hugging_face_server/
+
+# Portable standalone model evaluation; old local Kaggle artifacts remain ignored.
+!.gitignore
+!kaggle/
+kaggle/*
+!kaggle/ModelEvaluation.ipynb
+!kaggle/ModelEvaluationConfig.yaml
+!kaggle/ModelEvaluationModels.yaml
+!kaggle/ExportEvaluationResults.ipynb
+!code/tools/
+code/tools/*
+!code/tools/build_evaluation_kaggle.py
+!code/tests/
+code/tests/*
+!code/tests/TestModelEvaluation.py
+!.github/
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/model-evaluation.yml
+
+# Offline CI contracts and evaluation documentation; private inputs stay ignored.
+!code/tests/run_portable.py
+!code/tests/TestJudge.py
+!code/tests/TestScoringService.py
+!code/tests/TestRetrievalRecovery.py
+!kaggle/tests/
+kaggle/tests/*
+!kaggle/tests/TestLLMResponseObtainer.py
+!code/docs/
+code/docs/*
+!code/docs/model_evaluation_protocol.md
+!code/docs/model_evaluation_report.md
+!code/docs/verification.md
