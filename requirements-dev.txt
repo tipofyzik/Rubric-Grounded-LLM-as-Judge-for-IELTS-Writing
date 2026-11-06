@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Static analysis; pandas-stubs provides the supported Pandas type signatures.
+pyright==1.1.414
+pandas-stubs==3.0.5.260914
+

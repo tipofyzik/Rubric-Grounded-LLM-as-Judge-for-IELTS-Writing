@@ -1,4 +1,0 @@
--r ../requirements.txt
-
-# Local Gradio UI; compatible with the accepted model environment.
-gradio==6.9.0

@@ -1,0 +1,40 @@
+# Notebook reads this file; edit the configuration cell to override these values.
+mode: inference # inference | fine_tune | evaluate_existing
+run_name: qwen25_first_run # Same name replaces previous results; use a new name to keep both.
+install_dependencies: true # Install only missing packages; keep all installed versions.
+strict_checks: false # Optional half-band, report preflight and training-length checks.
+
+model:
+  id: Qwen/Qwen2.5-1.5B-Instruct
+  secret_name: "" # For a gated/private model: the label of an attached Kaggle Secret.
+
+data:
+  dataset_key: prepared # Verified Parquet release; legacy CSV keys/custom remain explicit options.
+  dataset_source: combined # combined | chillies | writing9
+  allow_partial: false # Test fixtures/previews only; keep false for experiments.
+  custom_csv: data/datasets/preprocessed_dataset.csv
+  essay_column: essay
+  test_size: 0.1
+  seed: 0
+  sample_limit: 20 # null means the complete test split.
+  train_limit: 200 # Only fine_tune; null means the complete train split.
+  drop_missing_labels: true # Print and save the number of excluded rows.
+
+inference:
+  runs: 1
+  max_new_tokens: 384
+  # Other generation settings: temperature=0.2, do_sample=True, FP16, device_map=auto.
+
+training:
+  mode: qlora # lora | qlora
+  max_length: 1536
+  # Existing LLMFineTuner defaults: 3 epochs, batch size 2,
+  # gradient_accumulation_steps=4, learning_rate=2e-4.
+
+evaluation:
+  make_plots: true
+  dpi: 100
+  group: non_fine_tuned # Only evaluate_existing: non_fine_tuned | fine_tuned.
+  run_order: [] # Empty means all CSVs in the chosen group.
+  models: [] # Empty means all models in those CSVs.
+  aes_reference: false # Only evaluate_existing; uses the supplied predictions table.

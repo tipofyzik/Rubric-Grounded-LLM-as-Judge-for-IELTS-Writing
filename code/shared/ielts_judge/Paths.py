@@ -1,0 +1,53 @@
+"""Load project filesystem locations from the root paths.yaml file."""
+from typing import Any
+
+from pathlib import Path
+from pathlib import PureWindowsPath
+
+import yaml
+
+
+PROJECT_ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parents if (candidate_path / "code/shared/paths.yaml").is_file())
+PATHS_CONFIG_PATH = PROJECT_ROOT / "code/shared/paths.yaml"
+
+
+def _resolve_paths(value: Any, root: Any=PROJECT_ROOT) -> Any:
+    """Resolve paths.
+
+    Args:
+        value (Any): Value used by this operation.
+        root (Any): Project root used to resolve relative configuration paths.
+
+    Returns:
+        Any: The computed result for the supplied inputs.
+    """
+    if isinstance(value, dict):
+        return {key: _resolve_paths(item, root) for key, item in value.items()}
+    if isinstance(value, str):
+        path = Path(value)
+        is_absolute = (
+            path.is_absolute()
+            or value.startswith("/")
+            or PureWindowsPath(value).is_absolute()
+        )
+        return str(path if is_absolute else (root / path).resolve())
+    return value
+
+
+def load_paths(project_root: Any=None) -> Any:
+    """Resolve a selected checkout's configuration, including notebook bundles.
+
+    Args:
+        project_root (Any): Selected source checkout used for configuration and artifacts.
+
+    Returns:
+        Any: The computed result for the supplied inputs.
+    """
+    root = Path(project_root).resolve() if project_root is not None else PROJECT_ROOT
+    with (root / "code/shared/paths.yaml").open("r", encoding="utf-8") as paths_file:
+        paths = yaml.safe_load(paths_file) or {}
+    for section in ("datasets", "external", "resources", "results", "evaluation_sources"):
+        paths[section] = _resolve_paths(paths.get(section, {}), root)
+    return paths
+
+PATHS = load_paths()

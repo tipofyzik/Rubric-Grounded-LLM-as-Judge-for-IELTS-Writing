@@ -1,0 +1,34 @@
+schema_version: model-evaluation-v1
+experiment_name: qwen25_context_comparison
+inputs:
+  dataset: data/datasets/processed/ielts-v3
+  aes_release: results/stage3/release.json
+  corpus_release: results/stage4/release.json
+model_registry: code/offline_research/notebooks/ModelEvaluationModels.yaml
+models: [qwen25_1p5b]
+setups: [base, rubric, panda, rubric_panda, panda_aes, rubric_panda_aes]
+evaluation:
+  sample_size: null # Full 1,635-row test pool. Set a positive size before starting a smaller experiment.
+  seed: 42
+  repeats: 1 # STD/repeatability are unmeasured until there are multiple repeats.
+runtime:
+  judge_device: cuda
+  context_device: cpu # AES/BGE finish and release their models before Qwen loads.
+  aes_batch_size: 8
+  retrieval_k: 1
+  timeout_seconds: 120
+  max_input_chars: 40000
+report:
+  metrics: [within_one_accuracy, mae, rmse, pearson, spearman, qwk]
+  # Remove/add names here. Tables are always exported, even when plots: [].
+  plots: [metric_comparison, calibration]
+  # Also available: metric_bars, metric_heatmap, error_histogram_std, error_ridge.
+  # There is no smoothing and no half-band accuracy.
+  formats: [png] # Add svg for vector output; webp is also supported.
+  dpi: 200
+  layout: grid # grid: 2x2 criteria; single: one figure per criterion, same shared limits.
+  style:
+    aes: {color: red, linestyle: '--', linewidth: 2}
+    models: {} # model key -> Matplotlib line/errorbar arguments
+    setups: {} # setup name -> Matplotlib line/errorbar arguments
+    rc: {font.size: 10, axes.grid: true, grid.alpha: 0.25}

@@ -1,307 +1,82 @@
-# Rubric-Grounded LLM-as-Judge for IELTS Writing Evaluation
+# IELTS Writing Evaluator
 
-This repository contains the official codebase, dataset preprocessing utilities, and evaluation scripts for my Bachelor Thesis project: **"Rubric-Grounded LLM-as-Judge for IELTS Writing: Reliability, Calibration, and Preference Adaptation Using an Automated Essay Scoring Expert Model"**.
+Evaluate an English IELTS Writing Task 2 question and essay with four integer criterion scores. The application combines an essay-only AES model, a retrieved PANDA training reference, a rubric and Qwen2.5-1.5B-Instruct. It is an experimental evaluator; it does not issue an official IELTS result.
 
-> 📄 <a href="https://docs.google.com/viewer?url=https://github.com/user-attachments/files/31278259/Rubric-Grounded.LLM-as-Judge.for.IELTS.Writing.pdf" target="_blank">
-**Read the full thesis**
-</a>
+**[Open the public demo](https://tipofyzik-ielts-writing-evaluator.hf.space)** · **[Documentation catalogue](docs/README.md)** · **[Architecture](docs/guides/01Architecture.md)** · **[Installation](docs/guides/04Installation.md)**
 
-## Writing Task 2 demo
+The interface supports English, Russian and German. Task and Essay stay English. Three original examples can be edited; evaluation runs only after pressing Evaluate. The application returns Task Response, Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy on the integer 0–9 scale.
 
-[Try the public demo](https://tipofyzik-ielts-writing-evaluator.hf.space).
-The full hybrid runs on Hugging Face ZeroGPU and the existing Supabase reference
-database, independently of the developer's computer. AES/corpus artifacts are
-restored from a pinned private release and are not served by the application.
-Visitor quotas and cold starts apply. Deployment, restoration and verification
-are documented in the [hosted runbook](code/hugging_face_server_runbook.md).
+![Real hosted scoring result with four criterion scores](docs/media/Demo.jpg)
 
-The Gradio UI runs the accepted hybrid scoring service with local CPU
-AES/BGE, Supabase reference retrieval and the hosted Qwen judge. In the prepared
-workspace, start it with:
+## Components
 
-```powershell
-& '.\.venv\Scripts\python.exe' -B '.\code\app.py'
-```
+| Directory | Responsibility | Entry point |
+|---|---|---|
+| [Public demo](code/public_demo/README.md) | Autonomous HF web application, isolated CPU models, ZeroGPU judge and deployment | `python Manage.py public --help` |
+| [Local backup](code/local_backup/README.md) | Local UI/CLI with CPU AES/BGE and remote judge/database | `python Manage.py local --help` |
+| [Shared core](code/shared/README.md) | Scoring, prompt/parser, model profiles, runtime artifacts and localization | Imported by the components |
+| [Offline research](code/offline_research/README.md) | Preserved preparation, training, generation and evaluation tools | `python Manage.py research evaluate --help` |
+| [Tests](tests/README.md) | Regression, portable, notebook and deployment contracts | `python Manage.py test --suite portable` |
 
-Open <http://127.0.0.1:7860>, select an editable example or enter your own Task and
-Essay, then select Evaluate. The UI returns four integer criterion scores,
-warnings and errors. This is an experimental demo, not an official IELTS result.
-The [runbook](code/local_app_runbook.md) covers dependencies, access settings,
-input limits and verification for the local reserve. Accepted local artifacts
-are required for that path. The language dropdown supports
-English, Russian and German; Task and Essay inputs remain in English.
-The project environment is `.venv`, runtime settings are in `.env`, and local
-model files use `.cache/huggingface`. VS Code's **IELTS Writing UI** configuration
-starts the same app with the project interpreter.
+Python source filenames use PascalCase; package markers keep Python's conventional `__init__.py` spelling. Each source block has its own README. The research tools are retained for reproducibility and are outside the current demo-completion scope.
 
-The current [file and data inventory](code/docs/project_files.md) explains which
-source datasets, prepared releases and runtime artifacts must be retained, and
-how the two [database migrations](code/migrations/README.md) work together.
+## Local startup
 
-## Standalone model evaluation
-
-Model quality is evaluated separately in a **new Kaggle notebook and a new private
-Dataset**. The dedicated configuration selects models, six context setups,
-evaluation IDs/repeats and plot types. AES is an ID-aligned transformer baseline
-with its numeric metric in comparison legends. Reports include MAE/QWK, exact and
-within-one-band accuracy, correlations, coverage/failures, calibration/bias,
-integer error distributions, confusion matrices and repeatability. Smoothing and
-half-band accuracy are not used.
-
-Build the new verified input package and matching pinned notebook with:
+Use Python 3.11 for local/operator commands. The generated Space pins its own Python version in its README metadata.
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -B code/tools/build_evaluation_kaggle.py
+python Manage.py install local
+# Create .env from .env.example in a new checkout and fill your own settings.
+python Manage.py setup --download-assets --warm-cache
+python Manage.py local --check
+python Manage.py local
 ```
 
-See the [model evaluation runbook](code/model_evaluation_runbook.md) for the new
-Dataset/notebook, configurable figures, pilot, append-only resume and exports.
-Each experiment, report and export gets a new directory/name. Existing notebooks,
-datasets and accepted releases are preserved. The full Kaggle benchmark has been
-completed: 1,635 essays, 9,810 valid Qwen jobs, six setups and one repeat.
-AES achieves macro MAE **0.979511** / QWK **0.607192**; the full hybrid achieves
-**0.981040** / **0.606128**, copying 6,536 of 6,540 AES criterion scores.
-No Qwen setup improves AES on MAE or QWK for any criterion. Repeatability and
-robustness experiments remain pending; **public service evaluation is deferred**.
+Open `http://127.0.0.1:7860`. The installer creates an isolated `.venv`; subsequent manager commands select it automatically. Do not overwrite an existing `.env`. Process environment values take precedence. `--check` checks files, installed versions and endpoint availability; it does not perform real model/database inference.
 
-See the [evaluation protocol](code/docs/model_evaluation_protocol.md),
-[baseline report](code/docs/model_evaluation_report.md) and
-[verification scope](code/docs/verification.md). The previously used test pool
-is not an untouched holdout; source labels are not certified examiner marks,
-and some train/test questions overlap. Historical thesis results below use
-different data and settings and are separate from this benchmark.
+**The source checkout does not contain trained weights, the corpus or datasets.** Download setup requires an accessible compatible release and immutable `HF_ARTIFACT_*` settings. The author's runtime artifacts are private. Alternatively use `python Manage.py setup --artifact-source PATH_TO_RELEASE --warm-cache`. See [installation and artifact access](docs/guides/04Installation.md) before running setup.
 
-## Local dataset preparation
+## Hosted deployment
 
-The main code prepares both local Chillies CSVs and Writing9 JSONLs into a shared,
-versioned Parquet release. Original text, source labels and train/test provenance
-are retained; duplicates and conflicting labels are audited across both sources.
-Chillies is included only where all four truncated integer
-criterion labels are 0–3 and source overall is below 4. Other Chillies records do
-not participate in deduplication. Writing9 retains its existing validation rules.
+The public application runs on HF with Supabase HTTPS/RPC. Visitors need only the public URL. Operators need their configured Space, private compatible artifacts and reference database; no new hosting platform is required.
 
 ```powershell
-python -B code/main.py
+python Manage.py install public
+python Manage.py public build
+python Manage.py public status
+python Manage.py public deploy
 ```
 
-Model stages are disabled. The default `stage_switch.transform_datasets: 0` loads
-the existing release; setting it to `1` explicitly rebuilds the release.
-`analyze_data: 1` prints audit and profile counts. Paths are in `code/paths.yaml`.
+Build is local. Deploy updates the configured Space and is an explicit publishing operation. Use `--configure-secrets` only when configuring the Space's runtime secrets. A new database requires migrations 004 then 005 and a separate corpus import; application startup does not migrate or ingest. See the [operator guide](docs/guides/05Deployment.md).
 
-The current working release is `code/resources/datasets/processed/ielts-v3`.
-After cleanup, selection applies quotas separately within the existing train and
-test splits, using the combined source pool. Configure them in `code/config.yaml`:
+## Existing evaluation
 
-```yaml
-dataset:
-  source: combined
-  save_intermediate_datasets: false
-  selection:
-    enabled: true
-    train_per_group: 500
-    test_per_group: 100
-    seed: 42
-```
+The preserved baseline compares AES with six Qwen context setups on the same 1,635 test essays, one repeat and 9,810 Qwen jobs. It found no improvement from the full hybrid:
 
-Each target score 0–9 has an `all_equal` quota, `within_1_only` quotas for
-`above_only` and `both_sides`, and `within_2_only` quotas for all three directions.
-`within_1_only.below_only` is reported but is not a selection group. Existing global
-type priority is preserved; consequently one-sided `within_2_only` groups are empty.
-Shared memberships count against every considered matching quota, so final group
-counts cannot exceed the limit. Selection maximizes filled group places; all quotas
-are filled when jointly feasible. Within equivalent membership groups, a seeded
-SHA256 ordering makes the chosen IDs independent of input row order. No source quotas
-or new train/test split are introduced. Set `enabled: false` to save the full cleaned
-dataset instead.
+| System | Macro MAE ↓ | Macro QWK ↑ |
+|---|---:|---:|
+| AES | 0.979511 | 0.607192 |
+| Rubric + PANDA + AES | 0.981040 | 0.606128 |
 
-The release contains:
+The full hybrid repeats 6,536 of 6,540 individual AES scores. These are four-criterion macro metrics, not an overall IELTS band. [Protocol](docs/model_evaluation_protocol.md) and [report](docs/model_evaluation_report.md) retain provenance. Repeatability, robustness, tuning and additional model runs are deferred. Engineering acceptance of the demo is separate from research completion.
 
-- `train.parquet`, `test.parquet`: selected essays, one row per source essay ID.
-- `score_profiles_before_selection.json`: counts for the full cleaned pool, including
-  separate source and train/test reports.
-- `score_profile_counts.json`: counts for selected essays; the numeric profile format
-  remains `score-profiles-v2`.
-- `score_profile_ids.json`: selected essay IDs. It uses the same group paths (`counts`,
-  `direction_counts`, `type_totals`, `not_matching_any_type`), with ID lists in place
-  of group counts. IDs before selection are used internally and are not saved.
-- `selection.json`: parameters, available/selected counts and IDs for every group,
-  and unique selected IDs per split.
-- `audit.json`, `plots/`, `manifest.json`: resulting audit, distributions and integrity
-  hashes. The loader verifies all artifacts; original sources are not overwritten.
+## Limits and data handling
 
-`dataset.save_intermediate_datasets` controls the four optional Parquet exports:
-`extracted/chillies.parquet`, `extracted/writing9.parquet`, `excluded.parquet` and
-`not_selected.parquet`. With `false` (the default), only final train/test datasets
-are written as Parquet. With `true`, all four intermediate datasets are also saved
-and registered in the manifest; without selection, `not_selected.parquet` is empty.
-The flag does not change selected essays or reports. It applies when preparation
-runs (`transform_datasets: 1`); previously exported files are not automatically deleted.
-Every artifact listed in a manifest is hash-verified. When a manifest declares
-intermediate exports enabled, the loader requires all four exports.
+- One tested judge profile is loaded at startup. A dropdown does not dynamically load another checkpoint.
+- AES sees Essay only; its first score is an essay-only proxy for Task Response. AES/BGE record truncation; the judge does not silently trim Task/Essay.
+- Source labels include Writing9 site/crowd scores. Questions can overlap between train/test; the used pool is not an untouched holdout.
+- PANDA preserves raw training-reference completions, including failed/partial generation, without repair.
+- The local backup uses hosted services and requires network access. Platform availability and visitor quotas affect the public demo.
+- The application does not persist submitted text/raw judge completions or add them to the reference corpus. Runtime file routes are blocked.
 
-`DatasetTransformer(paths, selection=options, save_intermediate_datasets=True)`
-exposes these settings through the Python API. `prepare_from_extracted(full_release)`
-can reuse a verified extracted cache from a release saved with intermediate exports
-enabled, or an older full release. `save_processed(...)` applies the configured final quotas. Loading remains
-compatible with historical full releases. Embeddings and PANDA insights are separate
-stages and are not generated by preparation.
-
-Checks: `python -B -m unittest discover -s code/tests -p 'Test*.py' -v`.
-Historical thesis metrics below belong to earlier experimental datasets.
-
-## Stage 2: full train and adjustable evaluation
-
-The demo trains AES and uses prompt engineering for its final judge. SFT remains
-optional research. All prepared train rows are used for AES and for the PANDA
-reference corpus; no mandatory validation or small reference subset is reserved.
-Insights and embeddings are generated later, separately from this preparation.
-
-```yaml
-evaluation:
-  sample_size: null # entire prepared source test; or a positive integer
-  seed: 42
-```
+## Verification and source release
 
 ```powershell
-python -B code/main.py --prepare-only
+python Manage.py test --suite portable
+python Manage.py test --suite all
+python Manage.py source-zip output/ielts-demo-source.zip
 ```
 
-This verifies the existing release and writes `experiment_manifest.json` under
-`results/datasets/ielts-v3/<dataset-hash-prefix>/<unique-run-id>/`. It runs no model
-stages even if their flags are enabled. Dataset transformation remains controlled
-by its own flag; leave `transform_datasets: 0` to preserve the prepared release.
+Portable checks use no private data, pretrained weights or online services. The full suite also requires local dataset/legacy fixtures. Tests do not substitute for a real hosted acceptance run. The [verification guide](docs/guides/07Verification.md) explains the scope and release checklist.
 
-Sampling ranks test IDs by SHA256(seed:essay_id), then exports the chosen rows in
-ID order. The same seed is independent of input order; larger samples retain the
-smaller sample. Requests exceeding the available test size are rejected. The
-manifest stores selected test IDs, full-train content/label fingerprints, source
-view, dataset manifest hash, question overlap and label/protocol provenance.
-It contains no duplicate copy of the essays or the full train ID list.
-
-Replay the saved selection into a new output directory, or explicitly continue
-aggregation/evaluation in an existing directory:
-
-```powershell
-python -B code/main.py --prepare-only --selection-manifest <saved-manifest-path>
-python -B code/main.py --run-directory <existing-run-directory>
-```
-
-Replace the angle-bracket placeholders with actual paths. A saved manifest takes
-precedence over current sample size/seed and must match the release, source view,
-contents and deterministic membership. New invocations create separate output
-directories. `--run-directory` deliberately reuses that directory; enabled stages
-can update their outputs there. Preparation alone does not create predictions.
-
-Source test is an adjustable evaluation pool, not a certified untouched holdout.
-Matching questions are allowed; identical essays are excluded. Test labels are
-used only for metrics. A later final benchmark needs a separate development/final
-evaluation protocol. `build_retrieval_index(frame, experiment_manifest=manifest)`
-checks the entire declared train before embedding and retains query ID/hash
-exclusions; legacy array callers do not have this identified experiment contract.
-
-Report: [Stage 2 implementation](code/docs/stage2_report_2026-10-23.md).
-
-## Static analysis
-
-Install `requirements-dev.txt` in a virtual environment and run `pyright` from the
-repository root. The checked-in configuration includes all Python files in `code`,
-including tests, in `standard` mode. The research code targets Windows/Python 3.11;
-the two Space applications target Linux/Python 3.10. Linux is the default for
-platform-specific library stubs used by the hosted applications.
-
-For a combined static-analysis environment, also install the Space package sources
-with `python -m pip install --no-deps gradio==5.49.1 spaces==0.51.3`. This environment
-is for analysis and research tests, not for launching the hosted apps: Gradio 5.49.1
-requires Pandas below 3, while the research environment uses Pandas 3. Deploy each
-Space using its own README and requirements. Select the analysis environment as
-the Python interpreter in VS Code/Pylance so it can resolve these packages.
-
-## Historical thesis study
-
-The following sections describe the earlier thesis experiments. Their datasets,
-fractional-score protocol, models and inference settings differ from the current
-integer-score demo benchmark above.
-
-### Abstract & Overview
-Automated Essay Scoring (AES) for standardized examinations like IELTS requires multi-criteria assessment strictly grounded in evaluation rubrics. This project investigates a hybrid evaluation framework using **Small Language Models (SLMs)** as judges. 
-
-The system integrates three core components:
-1. **AES Expert Model:** A multi-task ordinal regression model based on fine-tuned `RoBERTa-base` to generate preliminary domain-specific score estimates.
-2. **SLMs as Evaluators:** Performance evaluation of instruction-tuned models (`Qwen2-1.5B`, `Qwen2.5-1.5B`, `Llama-3.2-3B`, and `Mistral-7B`) under varying structured prompt guidance.
-3. **PANDA Preference Adaptation & Preliminary Guidance:** Incorporating domain insights derived via the PANDA framework alongside preliminary expert predictions to improve scoring consistency, calibration, and rank agreement.
----
-
-## 🚀 Key Features
-* **Multi-Criteria Assessment:** Evaluates all four official IELTS Writing Task 2 scoring criteria:
-  * Task Achievement (TA)
-  * Coherence and Cohesion (CC)
-  * Lexical Resource (LR)
-  * Grammatical Range and Accuracy (GRA)
-* **PANDA Preference Adaptation:** Range-specific insight extraction focusing on why an essay received a specific score versus neighboring bands ($Score \pm 1$).
-* **Hybrid Prompting Strategies:** Seamlessly combines zero-shot instructions, condensed IELTS rubrics, preference insights, and preliminary expert scores.
-* **Parameter-Efficient Fine-Tuning (LoRA):** Instruction tuning applied to attention projection layers (`q_proj`, `k_proj`, `v_proj`, `o_proj`) using PEFT.
-* **Rigorous Evaluation Framework:** Comprehensive analysis using **Quadratic Weighted Kappa (QWK)**, **RMSE**, **MAE**, **Adjacent Accuracy ($\pm 0.5$ band points)**, **Pearson ($r$) & Spearman ($r_s$) Correlations**, and **Calibration Curves**.
----
-
-## 🔬 Experimental Setup & Prompting Strategies
-We benchmarked 6 distinct prompting configurations across non-fine-tuned and fine-tuned SLMs:
-* `p1`: **Zero-shot** – Baseline prompt requiring structured JSON output.
-* `p2`: **Rubric-based (LLM-as-Judge)** – Includes shortened IELTS evaluation criteria.
-* `p3`: **PANDA-based** – Enriched with retrieved preference insights.
-* `p4`: **Rubric + PANDA** – Combined rubric grounding and preference adaptation.
-* `p5`: **PANDA + Preliminary Scores** – Integrates preference insights with preliminary score predictions from the RoBERTa expert.
-* `p6`: **Rubric + PANDA + Preliminary Scores** – Full hybrid prompt configuration.
----
-
-## 📊 Key Results & Findings
-* **Top Performing Prompt:** The PANDA-based approach combined with preliminary expert scores (`p5`) yielded the highest scoring agreement and calibration across models.
-* **Non-Fine-Tuned Models:** `Llama-3.2-3B-Instruct` demonstrated superior prompt-adapted evaluation performance across 5 out of 6 prompt strategies.
-
-<img width="8980" height="4974" alt="mean_qwk_across_runs" src="https://github.com/user-attachments/assets/987d47d5-5e3f-45e5-9c46-bbbe89a49f27" />  
-
-* **Fine-Tuned Models:** `Mistral-7B-Instruct-v0.2` fine-tuned with LoRA achieved the highest performance among other fine-tuned models. However, it failed to reach results of prompt-engineered non-fine-tuned models.
-
-<img width="9601" height="4974" alt="mean_qwk_across_runs" src="https://github.com/user-attachments/assets/ef93860f-7c48-4660-b5fd-670e1dc009ed" />  
-
-* **AES RoBERTa Expert:** Provided reliable baseline estimates ($QWK \approx 0.650 - 0.661$) used to guide SLM evaluation.
----
-
-## 🛠️ Tech Stack & Hardware Setup
-* **Frameworks & Libraries:** PyTorch, Hugging Face `transformers`, `peft`, `datasets`, `accelerate`.
-* **Hardware:**
-  * **Fine-Tuning:** NVIDIA L4 GPU (24 GB)
-  * **Inference:** 2x NVIDIA T4 GPUs (16 GB)
-* **Inference Parameters:** `max_new_tokens=200`, `temperature=0.2`, `do_sample=True`.
----
-
-## 📁 Repository Structure
-```text
-├── code/
-│   ├── main.py                  # Explicit research stages; loads verified Parquet splits
-│   ├── config.yaml
-│   ├── paths.yaml
-│   ├── ielts_judge/
-│   │   ├── data/                # Two-source extraction, validation, Parquet, profiles and adapters
-│   │   ├── aes/                 # Ordinal regression and AES metrics
-│   │   ├── llm/                 # Generation, judge and optional SFT
-│   │   ├── panda/               # Insights and retrieval linked by essay IDs
-│   │   └── evaluation/          # Prediction aggregation and ID-aligned metrics
-│   ├── resources/datasets/      # Local sources and versioned processed releases
-│   └── tests/
-├── kaggle/                      # Notebook, RunConfig and notebook regression tests
-└── context/                     # Plans and dated implementation reports
-```
-
----
-
-## 📄 Citation
-If you use this repository or reference the findings in your work, please cite:  
-```bibtex
-@thesis{ielts_slm_judge_2026,
-  author       = {Sergei Liapunov},
-  title        = {Rubric-Grounded LLM-as-Judge for IELTS Writing: Reliability, Calibration, and Preference Adaptation Using an Automated Essay Scoring Expert Model},
-  school       = {IU International University of Applied Sciences},
-  year         = {2026},
-  type         = {Bachelor's Thesis}
-}
-```
+The source archive excludes `.env`, caches, environments, data, weights, results, IDE settings and the local `.gitignore`. The workspace uses a deny-all publication allowlist. GitHub publication is performed by the repository owner after reviewing the changes. See the [engineering verification report](docs/DemoVerification.md) for the checked source/runtime scope.
