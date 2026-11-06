@@ -1,4 +1,4 @@
-"""Stage 4 offline generation, corpus building and Supabase RPC verification."""
+"""Offline PANDA generation, corpus building and Supabase RPC verification."""
 
 import argparse
 import hashlib
@@ -83,13 +83,13 @@ def main(argv=None):
     for name in ("audit", "generate", "compare", "build"):
         command = commands.add_parser(name)
         command.add_argument("--prepared", type=Path, default=Path(PATHS["datasets"]["prepared"]))
-        command.add_argument("--profile", type=Path, default=Path(__file__).parent / "resources/stage4.yaml")
+        command.add_argument("--profile", type=Path, default=Path(__file__).parent / "resources/panda_generation.yaml")
         command.add_argument("--output", type=Path, required=True)
         if name in ("generate", "compare"):
             command.add_argument("--limit", type=int)
             command.add_argument("--retry-failed", action="store_true")
         if name == "compare":
-            command.add_argument("--selection", type=Path, default=Path(__file__).parent / "resources/stage4_pilot.json")
+            command.add_argument("--selection", type=Path, default=Path(__file__).parent / "resources/panda_comparison.json")
         if name == "build":
             command.add_argument("--insights", type=Path, required=True)
             command.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
@@ -107,7 +107,7 @@ def main(argv=None):
     if args.command in ("audit", "generate", "compare", "build"):
         config = yaml.safe_load(args.profile.read_text(encoding="utf-8"))
         if not isinstance(config, dict) or set(config) != {"generator", "embedding"}:
-            raise ValueError("Stage4 profile needs generator and embedding sections")
+            raise ValueError("PANDA profile needs generator and embedding sections")
         profile, embedding = generation_profile(config["generator"]), embedding_profile(config["embedding"])
         train, experiment = data(args.prepared)
         if args.command == "audit":
