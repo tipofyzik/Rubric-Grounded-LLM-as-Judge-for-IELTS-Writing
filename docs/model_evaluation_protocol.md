@@ -1,17 +1,14 @@
 # Model evaluation protocol
 
-Status: baseline protocol documented retrospectively on 6 November 2026.
-Repeatability and robustness experiments are pending the user's choice of scope
-and subsequent Kaggle runs. This document does not preregister completed work.
+Documented on 6 November 2026 for the completed baseline.
 
 ## Research question and scope
 
 For Qwen2.5-1.5B-Instruct, does rubric context, retrieved PANDA context or AES
 guidance improve criterion-score agreement with source labels over AES alone?
-Compare AES with `base`, `rubric`, `panda`, `rubric_panda`, `panda_aes` and
-`rubric_panda_aes` on identical essay IDs. This is a model experiment, separate
-from public-service latency, queue, restart and quota evaluation, which is deferred.
-An unfavourable hybrid result is a valid outcome; prompt tuning is a future study.
+The benchmark compared AES with `base`, `rubric`, `panda`, `rubric_panda`,
+`panda_aes` and `rubric_panda_aes` on identical essay IDs. Its measurements
+cover score agreement and model inference on Kaggle.
 
 ## Accepted baseline and provenance
 
@@ -40,11 +37,6 @@ training release records the training provenance; the generic experiment manifes
 AES sees Essay only. Mapping its first output to `task_response` does not make
 that estimate sensitive to Task. AES and BGE use a 512-token input limit and
 record truncation; the judge's Task/Essay text is not silently truncated.
-
-The local baseline is `results/evaluation/runs/20261104T160302Z-470168bdfc/`.
-The archive inventory records 201 file hashes. The run contains selected IDs,
-labels, contexts, raw predictions, environment and timings. These are private
-research artifacts.
 
 ## Data and leakage boundaries
 
@@ -86,11 +78,8 @@ not-run counts; never silently compare different populations. Undefined metrics
 retain null with a reason, including correlations for constant predictions.
 QWK can be defined as zero when predictions are constant but source labels vary.
 
-Across-repeat summaries use metric means and sample STD (`ddof=1`); one defined
-repeat leaves STD unmeasured. Repeat STD is not a confidence interval. For future
-repeated runs also compare exact criterion and full-vector agreement and score
-ranges. Deterministic copying of AES can be reproducible without demonstrating
-meaningful robustness.
+The benchmark ran each setup once. Across-repeat summaries use metric means
+and sample standard deviation (`ddof=1`) when multiple repeats are available.
 
 ## Timing scope and environment
 
@@ -101,32 +90,10 @@ in the run and inference environment manifests.
 
 Model/tokenizer startup is recorded separately and may include uncached downloads.
 Per-job wall time and GPU work exclude the one-time batch context preparation.
-Context batch time is not per-submission service latency. GPU work and allocation
-are not hosted quota billing. A later CPU-context run must not be silently resumed
-into this CUDA-context inference history.
+Timings describe the model process on Kaggle. Context batch time is reported
+separately from job wall time and GPU work.
 
-## Development and final evaluation policy
+## Evaluation pool
 
-The full test pool has already been examined in pilots, the complete baseline and
-historical comparisons. It is an adjustable, previously used evaluation pool,
-not an untouched holdout. The present study reports the fixed baseline without
-tuning or selecting a new winning configuration on this pool.
-
-Before future tuning, specify development data and an independently reserved
-final evaluation population, selection policy, fixed settings and reporting
-rules before inspecting final outcomes. Reserving IDs from an already inspected
-pool cannot undo its history. UI examples are not final evaluation data.
-
-## Pending addenda owned jointly with the user
-
-The user chooses the additional experiment sizes and runs Kaggle. The previously
-discussed 100 essays x 3 repeats and 60 robustness cases remain proposals; no
-sample IDs, number of repeats or custom-case manifest is fixed by this document.
-
-Before execution, save the repeatability IDs/settings and a robustness manifest
-with stable case/group IDs, original-to-variant links, exact input hashes and
-expected behaviour. Cover original/paraphrased/mismatched Task, instructions
-inside Essay, and short/long boundary inputs. Modified inputs do not inherit
-ground-truth labels automatically; use paired behavioural analysis unless an
-additional expert annotation is supplied. Correct input rejection is a recorded
-outcome. Freeze these addenda before running either experiment.
+The test pool was used in pilots and earlier comparisons. This report describes
+the fixed baseline on that pool.

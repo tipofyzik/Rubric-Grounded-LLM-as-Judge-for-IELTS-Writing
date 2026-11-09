@@ -506,7 +506,7 @@ def render_plots(tables: Any, plan: Any, output: Any, options: Any) -> dict[str,
         groups = list(selected.groupby(["model_key", "setup"], sort=False))
         if not groups:
             return
-        with canvas("Local model generation time | valid requests, prepared context; service evaluation deferred", shape=(1, 1), size=(12, 6)) as (fig, axes):
+        with canvas("Local model generation time | valid requests, prepared context", shape=(1, 1), size=(12, 6)) as (fig, axes):
             ax = axes[0]
             ax.boxplot([current_group.judge_seconds.to_numpy(dtype=float) for _, current_group in groups], tick_labels=[name(*key) for key, _ in groups])
             ax.tick_params(axis="x", rotation=30)

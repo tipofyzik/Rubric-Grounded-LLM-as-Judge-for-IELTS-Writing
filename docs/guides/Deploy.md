@@ -11,7 +11,7 @@ The operator uses the existing Gradio/ZeroGPU Space, private artifact repository
 
 The application restores hash-verified private AES/corpus artifacts at startup. Public source contains only code and safe configuration. No training, insights generation or database ingestion runs at startup. Runtime file routes remain blocked. A restart can require model initialization before the interface becomes ready.
 
-For a new database, follow the [migration, corpus import and retrieval checks](../../code/public_demo/migrations/README.md). For routine deployments, use the existing compatible database and verify that its ready corpus matches the release used by the Space.
+For a new database, apply the migrations, import the corpus and check retrieval. Migration 004 uses `vector` and `pgcrypto` in the `extensions` schema. The app uses the Supabase publishable key. Use the secret key for import. For an existing database, verify that the ready corpus matches the Space release. [Migrations](../../code/public_demo/migrations/README.md)
 
 The local app uses the Space’s judge and must use the matching tokenizer. After updating the Space, verify that an essay can still be scored from the local app. If the deployment fails, check the saved build information and use the previous verified revision for rollback.
 

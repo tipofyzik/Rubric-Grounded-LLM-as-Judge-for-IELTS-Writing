@@ -1,8 +1,6 @@
 # Model evaluation: Qwen2.5-1.5B and AES
 
-Baseline report, 6 November 2026. Repeatability and robustness results are pending.
-The [protocol](model_evaluation_protocol.md) defines provenance and limitations;
-the [verification guide](guides/Verify.md) separates CPU tests, CI and GPU evidence.
+Baseline report, 6 November 2026. [Evaluation protocol](model_evaluation_protocol.md)
 
 ## Result
 
@@ -12,7 +10,7 @@ aggregate. This result concerns the fixed model, prompt, corpus and k=1 setting;
 it does not establish that rubric or retrieval context cannot help other models.
 
 All 9810 Qwen jobs and 1635 AES outputs are valid. Common-valid N is 1635.
-There is one repeat, so between-run repeatability and STD are unmeasured.
+Each configuration ran once.
 
 | Configuration | Macro QWK | Macro RMSE | Macro MAE | Exact accuracy | Within-one accuracy |
 |---|---:|---:|---:|---:|---:|
@@ -39,9 +37,7 @@ and the entire AES vector for 1632/1635 essays. Its four changed scores on three
 essays all increase absolute error. PANDA + AES changes 161 essay vectors:
 38 improve, 107 worsen and 16 retain the same summed absolute error.
 
-These are measured dependencies on supplied numbers. The experiment does not
-identify whether model size, prompt wording, rubric presentation or another
-factor causes them. Causal investigation and tuning require a separate study.
+These comparisons measure output agreement with the scores supplied in the prompts.
 
 ## Time and resources
 
@@ -49,8 +45,7 @@ Qwen startup takes 12.94 seconds. The 9810 jobs sum to 21061.68 seconds of job
 wall time (about 5 hours 51 minutes) and 20960.77 seconds of GPU work. Mean job
 wall time ranges from 2.0175 seconds (base) to 2.3514 seconds (full hybrid).
 One-time context preparation takes 164.23 seconds. Peak per-job CUDA allocation
-is approximately 3664 MiB. These are Kaggle model measurements; public-service
-queue, cold start and quota evaluation remains deferred.
+is approximately 3664 MiB. These timings describe model inference on Kaggle.
 
 Judge prompts reach at most 2220 tokens, below the 3840 input budget; outputs
 reach at most 47 tokens, below 256. All completions finish with EOS. Context
@@ -58,22 +53,15 @@ encoders truncate 25 AES inputs and 16 BGE queries at their 512-token limits.
 
 ## Reproduce the report
 
-The local baseline is `results/evaluation/runs/20261104T160302Z-470168bdfc/`.
-The archive inventory covers 201 files (82,940,943 bytes), including 84 listed
-in the original export manifest.
-
-All 15 CSV tables from the rebuilt report match the original within 1e-12.
-
-From the repository root, rebuild the report in the research environment.
+Use a saved evaluation run to rebuild the report from the repository root.
 
 ```sh
-python Manage.py research evaluate --mode report --resume-run results/evaluation/runs/20261104T160302Z-470168bdfc
+python Manage.py research evaluate --mode report --resume-run "PATH_TO_RUN"
 ```
 
-The source datasets and model weights are not needed by report mode. The full
-private/local run is required and is not distributed by a clean Git checkout.
+Report mode reads the saved run and writes new tables and plots.
 
-## Remaining evidence
+## Limitations
 
 The test pool is previously used, heavily Writing9-dominated and has shared
 train/test questions. Source labels are not certified examiner annotations.

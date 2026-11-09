@@ -1,4 +1,3 @@
-# Release profile; full hybrid latency/quota and quality are measured later.
 models:
   qwen25_1p5b:
     label: Qwen2.5 1.5B Instruct

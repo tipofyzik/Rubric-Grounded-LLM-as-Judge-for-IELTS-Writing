@@ -15,7 +15,7 @@ flowchart LR
   LocalService --> LocalCPU[Local CPU AES and BGE]
   LocalService --> Database
   LocalService --> GPU
-  Research[Deferred offline tools] --> Shared[Shared models and contracts]
+  Research[Offline research] --> Shared[Shared models and contracts]
 ```
 
 - **Hosted demo.** Hugging Face serves the interface and runs the scoring engine. A separate CPU worker makes the first estimate and prepares the search query. The Space requests a GPU for Qwen when the prompt is ready.

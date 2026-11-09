@@ -72,7 +72,7 @@ def source_archive(destination: Path) -> int:
                 if folder != "docs" and source_path.name not in {"README.md", "OPERATING.md"}:
                     continue
                 if folder == "docs" and source_path.parent == ROOT / "docs" and source_path.name not in {
-                    "README.md", "DemoVerification.md", "model_evaluation_protocol.md", "model_evaluation_report.md",
+                    "README.md", "model_evaluation_protocol.md", "model_evaluation_report.md",
                 }:
                     continue
             if source_path.is_file() and source_path.suffix in extensions and not excluded.intersection(source_path.relative_to(ROOT).parts):
@@ -183,7 +183,7 @@ def create_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="component", required=True)
     commands.add_parser("public", add_help=False, help="Space artifacts/build/status/deploy")
     commands.add_parser("local", add_help=False, help="Local UI, or local score for the CLI")
-    research = commands.add_parser("research", add_help=False, help="Deferred research tools")
+    research = commands.add_parser("research", add_help=False, help="Research tools")
     research.add_argument("action", choices=tuple(RESEARCH_COMMANDS))
     commands.add_parser("setup", add_help=False, help="Restore compatible assets and model cache")
     install = commands.add_parser("install", help="Install one component's dependencies")

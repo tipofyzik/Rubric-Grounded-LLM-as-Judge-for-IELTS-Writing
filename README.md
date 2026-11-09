@@ -4,7 +4,7 @@ Score IELTS Writing Task 2 essays with a rubric-grounded Qwen judge. The demo re
 
 [Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install) · [Architecture](docs/guides/Architecture.md) · [Research](code/offline_research/README.md) · [Docs](docs/README.md)
 
-The question and essay go to the judge on Hugging Face. Supabase receives an essay vector and fingerprint for reference search. [Data handling](docs/guides/Troubleshooting.md)
+The question and essay are sent to Hugging Face for scoring. [Data handling](docs/guides/Troubleshooting.md)
 
 ![The demo showing four scores for a sample essay](docs/media/Demo.jpg)
 
@@ -18,7 +18,7 @@ You need Python 3.11, access to a Hugging Face Space running the judge, a Supaba
    python Manage.py install local
    ```
 
-2. **Configure access.** Copy [`.env.example`](.env.example) to `.env` and set the Space ID, HF token, Supabase URL and publishable key. For a download, set the three `HF_ARTIFACT_*` values. [Settings](docs/guides/Install.md#configure-access)
+2. **Configure access.** Copy [`.env.example`](.env.example) to `.env` and fill in your settings. [Settings](docs/guides/Install.md#configure-access)
 
 3. **Restore assets.** Run one command for your release source.
 
@@ -51,10 +51,6 @@ The hosted demo and local app share the same scoring engine. Both look up refere
 
 [Scoring](docs/guides/Scoring.md) · [Code](code/README.md)
 
-## Verification
-
-The hosted demo was checked with new essays, simultaneous requests and a restart. The checks also covered scoring through the local app. [Demo verification](docs/DemoVerification.md)
-
 ## Data
 
 The benchmark uses `ielts-v3`, a filtered and deduplicated dataset built from [Chillies](https://huggingface.co/datasets/chillies/IELTS-writing-task-2-evaluation) and [Writing9](https://huggingface.co/datasets/ndtran0101/writing9-ielts-essays). Chillies supplies low-band examples.
@@ -65,7 +61,7 @@ The benchmark uses `ielts-v3`, a filtered and deduplicated dataset built from [C
 | Writing9 | 7,973 | 1,613 |
 | **Total** | **8,236** | **1,635** |
 
-AES training and PANDA retrieval use the train split. The benchmark uses the test split and compares predictions with the source labels. [Data preparation](code/offline_research/data/README.md) · [Evaluation protocol](docs/model_evaluation_protocol.md#data-and-leakage-boundaries)
+AES training and PANDA retrieval use the train split. The benchmark compares predictions with the source labels on the test split. [Data preparation](docs/guides/PrepareData.md) · [Evaluation protocol](docs/model_evaluation_protocol.md#data-and-leakage-boundaries)
 
 ## Results
 
@@ -79,7 +75,7 @@ On Kaggle, we ran each of the six prompt variants once on the full test split wi
 
 Quadratic weighted kappa (QWK) measures agreement on the ordered band scale. Root mean squared error (RMSE) gives more weight to large errors. Mean absolute error (MAE) and RMSE are measured in band points.
 
-The full prompt improved agreement over the base Qwen prompt. The standalone essay scorer led on all three aggregate metrics, and the full prompt returned the same score as that scorer in 6,536 of 6,540 cases. The comparison uses one run per setup and labels from the source datasets. [Full results](docs/model_evaluation_report.md) · [Evaluation protocol](docs/model_evaluation_protocol.md)
+The full prompt improved agreement over the base Qwen prompt. The standalone essay scorer led on all three aggregate metrics, and the full prompt returned the same score as that scorer in 6,536 of 6,540 cases. [Full results](docs/model_evaluation_report.md) · [Evaluation protocol](docs/model_evaluation_protocol.md)
 
 ## References
 
