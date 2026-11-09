@@ -1,6 +1,6 @@
 # IELTS Writing Evaluator
 
-Score IELTS Writing Task 2 essays with a rubric-grounded Qwen judge. The demo accepts an English question and essay and returns four experimental criterion scores (integers from 0 to 9). It includes three examples and an English, Russian and German interface.
+Score IELTS Writing Task 2 essays with a rubric-grounded Qwen judge. The demo returns four experimental criterion scores (integers from 0 to 9) and includes three sample essays. The interface supports English, Russian and German.
 
 [Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install) · [Architecture](docs/guides/Architecture.md) · [Research](code/offline_research/README.md) · [Docs](docs/README.md)
 
@@ -55,9 +55,21 @@ The hosted demo and local app share the same scoring engine. Both look up refere
 
 The hosted demo was checked with new essays, simultaneous requests and a restart. The checks also covered scoring through the local app. [Demo verification](docs/DemoVerification.md)
 
+## Data
+
+The benchmark uses `ielts-v3`, a filtered and deduplicated dataset built from [Chillies](https://huggingface.co/datasets/chillies/IELTS-writing-task-2-evaluation) and [Writing9](https://huggingface.co/datasets/ndtran0101/writing9-ielts-essays). Chillies supplies low-band examples.
+
+| Source | Train | Test |
+| --- | ---: | ---: |
+| Chillies | 263 | 22 |
+| Writing9 | 7,973 | 1,613 |
+| **Total** | **8,236** | **1,635** |
+
+AES training and PANDA retrieval use the train split. The benchmark uses the test split and compares predictions with the source labels. [Data preparation](code/offline_research/data/README.md) · [Evaluation protocol](docs/model_evaluation_protocol.md#data-and-leakage-boundaries)
+
 ## Results
 
-On Kaggle, we tested six prompt variants with Qwen2.5-1.5B-Instruct, the model used in the demo. Each variant ran once on the same 1,635 essays. The metrics are averaged across the four criteria.
+On Kaggle, we ran each of the six prompt variants once on the full test split with Qwen2.5-1.5B-Instruct, the model used in the demo. The metrics are averaged across the four criteria.
 
 | Scoring setup | QWK ↑ | RMSE ↓ | MAE ↓ |
 | --- | ---: | ---: | ---: |
