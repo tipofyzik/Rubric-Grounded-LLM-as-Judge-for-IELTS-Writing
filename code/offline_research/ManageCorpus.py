@@ -102,13 +102,13 @@ def verify_rpc(corpus: Any, rpc: Any, *, query_count: int=5) -> dict[str, Any]:
     evidence = []
     for row in sorted(records, key=lambda item: hashlib.sha256(item["essay_id"].encode()).hexdigest())[:query_count]:
         encoder.row = row
-        result = retriever.retrieve(row["essay"], essay_id=row["essay_id"], reference_count=current_key)
+        result = retriever.retrieve(row["essay"], essay_id=row["essay_id"], reference_count=reference_count)
         query = np.asarray(row["embedding"], dtype=np.float32)
         similarities = (matrix @ query) / (np.linalg.norm(matrix, axis=1) * np.linalg.norm(query))
         eligible = [current_index for current_index, item in enumerate(records) if item["essay_id"] != row["essay_id"] and item["essay_hash"] != text_hash(row["essay"])]
         eligible.sort(key=lambda current_index: (-float(similarities[current_index]), records[current_index]["essay_id"]))
         returned = result["references"]
-        if len(returned) != min(current_key, len(eligible)):
+        if len(returned) != min(reference_count, len(eligible)):
             raise ValueError("RPC did not return the expected number of neighbors")
         by_id = {record["essay_id"]: current_index for current_index, record in enumerate(records)}
         cutoff = float(similarities[eligible[len(returned)-1]]) if returned else -1
@@ -121,7 +121,7 @@ def verify_rpc(corpus: Any, rpc: Any, *, query_count: int=5) -> dict[str, Any]:
             if reference.task_prompt != expected["task_prompt"] or reference.essay != expected["essay"] or reference.scores != {key: current_value["score"] for key,current_value in expected["criteria"].items()} or reference.insights != expected_insights:
                 raise ValueError("RPC labels/insights do not match the saved reference ID")
         evidence.append({"query_id": row["essay_id"], "reference_ids": [current_record.essay_id for current_record in returned], "similarities": result["similarities"]})
-    return {"corpus_id": corpus.manifest["corpus_id"], "k": current_key, "queries": evidence, "status": "passed",
+    return {"corpus_id": corpus.manifest["corpus_id"], "k": reference_count, "queries": evidence, "status": "passed",
             "scope": "real RPC vs saved vectors; fresh-text encoder smoke is a separate query command"}
 
 

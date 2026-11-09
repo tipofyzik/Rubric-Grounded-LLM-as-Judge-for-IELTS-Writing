@@ -15,6 +15,7 @@ sys.path[:0] = [str(ROOT / "code"), str(ROOT / "code/shared")]
 from ielts_judge.Database import ReferenceRetriever, SupabaseRPC
 from ielts_judge.ModelRegistry import ModelRegistry
 from ielts_judge.Criteria import PUBLIC_CRITERION_IDS
+from ielts_judge.Paths import find_release
 from ielts_judge.Scoring import ScoringService
 
 
@@ -86,7 +87,7 @@ def main() -> None:
     Returns:
         None: This operation returns no value.
     """
-    release = json.loads((ROOT / "results/stage4/release.json").read_text(encoding="utf-8"))
+    release = json.loads(find_release(ROOT, "panda").read_text(encoding="utf-8"))
     manifest = json.loads((ROOT / release["corpus_path"] / "manifest.json").read_text(encoding="utf-8"))
 
     class Handler(BaseHTTPRequestHandler):

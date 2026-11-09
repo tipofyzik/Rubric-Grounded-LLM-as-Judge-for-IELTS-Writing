@@ -16,6 +16,7 @@ ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parent
 sys.path[:0] = [str(ROOT / "code"), str(ROOT / "code/shared")]
 from ielts_judge.Access import read_access
 from ielts_judge.Criteria import PUBLIC_CRITERION_IDS
+from ielts_judge.Paths import find_release
 from ielts_judge.Prompts import JudgeContext, ReferenceContext, build_judge_messages
 from Verify import call
 
@@ -73,7 +74,7 @@ def main() -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     needed = {identity for current_record in accepted for identity in current_record["result"]["metadata"]["retrieval"]["used_reference_ids"]}
-    release = json.loads((ROOT / "results/stage4/release.json").read_text(encoding="utf-8"))
+    release = json.loads(find_release(ROOT, "panda").read_text(encoding="utf-8"))
     records = {}
     with (ROOT / release["corpus_path"] / "records.jsonl").open(encoding="utf-8") as stream:
         for line in stream:

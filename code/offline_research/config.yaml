@@ -1,4 +1,4 @@
-stage_switch:
+tasks:
   transform_datasets: 0
   analyze_data: 1
   train_custom_regressor: 0

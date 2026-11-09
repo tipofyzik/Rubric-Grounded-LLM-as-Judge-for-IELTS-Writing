@@ -33,6 +33,7 @@ def main() -> None:
 
     sys.path[:0] = [str(ROOT / "code/shared"), str(ROOT / "code/shared")]
     from ielts_judge.llm.Judge import Judge
+    from ielts_judge.Paths import find_release
     from ielts_judge.ScoringRuntime import load_scoring_service
     from ielts_judge.Ui import build_demo
     from CpuWorker import CPUWorker
@@ -67,8 +68,8 @@ def main() -> None:
     cpu_worker = CPUWorker()
     service = load_scoring_service(
         HostedJudge(judge, generate), cpu_worker=cpu_worker,
-        aes_release=artifacts / "results/stage3/release.json",
-        corpus_release=artifacts / "results/stage4/release.json", project_root=artifacts,
+        aes_release=find_release(artifacts, "aes"),
+        corpus_release=find_release(artifacts, "panda"), project_root=artifacts,
         supabase_url=os.environ["SUPABASE_URL"], supabase_key=os.environ["SUPABASE_PUBLISHABLE_KEY"],
     )
     service.versions.update(runtime_instance=uuid4().hex, cpu_runtime="spawned_process",
@@ -78,13 +79,13 @@ def main() -> None:
                             startup_parent_peak_rss_mib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
     demo = build_demo(service)
 
-    # Preserve the local fallback's existing endpoint and shared admission limit.
+    # The local app shares the same admission limit as browser requests.
     with demo:
-        legacy_payload = gr.JSON(visible=False)
-        legacy_result = gr.JSON(visible=False)
-        legacy_button = gr.Button(visible=False)
-        legacy_button.click(generate, inputs=legacy_payload, outputs=legacy_result,
-                            api_name="stage5_judge", api_visibility="undocumented",
+        judge_payload = gr.JSON(visible=False)
+        judge_result = gr.JSON(visible=False)
+        judge_button = gr.Button(visible=False)
+        judge_button.click(generate, inputs=judge_payload, outputs=judge_result,
+                            api_name="judge", api_visibility="undocumented",
                             concurrency_limit=1, concurrency_id="scoring")
     demo.launch(server_name="0.0.0.0", server_port=7860, share=False,
                 show_error=False, enable_monitoring=False, state_session_capacity=32,

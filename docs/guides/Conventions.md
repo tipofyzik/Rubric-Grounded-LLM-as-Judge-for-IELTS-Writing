@@ -1,4 +1,4 @@
-# Code conventions and extension points
+# Conventions
 
 
 Use PascalCase Python module/class names; keep conventional `__init__.py` package markers. Use descriptive snake_case variables and parameters. Avoid one-letter local names; `_` may mark an intentionally unused value. External library aliases and established JSON/SQL keys retain their compatibility contracts.
@@ -10,4 +10,4 @@ Use objects for related state and behavior: the command runner, model/transport 
 Changes to scoring contracts must update every public/local/research consumer and its meaningful checks. Changes to notebook source require matching ZIP/manifest/notebook regeneration. Preserve accepted data, source labels, raw outputs and immutable historical releases.
 
 
-[Documentation catalogue](../README.md)
+[Docs](../README.md)

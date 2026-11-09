@@ -2,7 +2,7 @@
 
 Baseline report, 6 November 2026. Repeatability and robustness results are pending.
 The [protocol](model_evaluation_protocol.md) defines provenance and limitations;
-the [verification guide](guides/07Verification.md) separates CPU tests, CI and GPU evidence.
+the [verification guide](guides/Verify.md) separates CPU tests, CI and GPU evidence.
 
 ## Result
 
@@ -56,23 +56,18 @@ Judge prompts reach at most 2220 tokens, below the 3840 input budget; outputs
 reach at most 47 tokens, below 256. All completions finish with EOS. Context
 encoders truncate 25 AES inputs and 16 BGE queries at their 512-token limits.
 
-## Preservation and reproduction
+## Reproduce the report
 
-The complete supplied run is preserved at
-`results/stage8/runs/20261104T160302Z-470168bdfc/`. The original TEMP run remains
-unchanged. `results/stage8/baseline_archive.json` verifies 201 copied files
-(82,940,943 bytes), including 84 files listed by the original export manifest.
+The local baseline is `results/evaluation/runs/20261104T160302Z-470168bdfc/`.
+The archive inventory covers 201 files (82,940,943 bytes), including 84 listed
+in the original export manifest.
 
-Rebuilding the report from this copy without inference produced
-`results/stage8/reports/baseline-archive-2026-11-06/`. All 15 CSV tables match the
-original report within 1e-12; the current seven PNG figures use the agreed grid,
-legends and axis margins. Detailed per-criterion/source analyses are retained in
-`results/stage8/analysis/2026-11-04-full1635/`.
+All 15 CSV tables from the rebuilt report match the original within 1e-12.
 
-For a new report directory, use the prepared environment:
+From the repository root, rebuild the report in the research environment.
 
-```powershell
-& '.\.venv\Scripts\python.exe' -B code/offline_research/EvaluateModels.py --mode report --resume-run results/stage8/runs/20261104T160302Z-470168bdfc
+```sh
+python Manage.py research evaluate --mode report --resume-run results/evaluation/runs/20261104T160302Z-470168bdfc
 ```
 
 The source datasets and model weights are not needed by report mode. The full

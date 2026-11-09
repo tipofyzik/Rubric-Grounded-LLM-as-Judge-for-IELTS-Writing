@@ -2,8 +2,8 @@ schema_version: model-evaluation-v1
 experiment_name: qwen25_context_comparison
 inputs:
   dataset: data/datasets/processed/ielts-v3
-  aes_release: results/stage3/release.json
-  corpus_release: results/stage4/release.json
+  aes_release: results/aes/release.json
+  corpus_release: results/panda/release.json
 model_registry: code/offline_research/notebooks/ModelEvaluationModels.yaml
 models: [qwen25_1p5b]
 setups: [base, rubric, panda, rubric_panda, panda_aes, rubric_panda_aes]

@@ -1,4 +1,4 @@
-# Reading the code
+# Code
 
 
 Start with the root manager, then read the shared service before platform adapters.
@@ -7,7 +7,7 @@ Start with the root manager, then read the shared service before platform adapte
 |---|---|
 | Which command launches which component? | [Manage.py](../../Manage.py) |
 | Where are runtime inputs restored? | [RuntimeAssets.py](../../RuntimeAssets.py) |
-| Who owns validation, stages and failures? | [Scoring.py](../../code/shared/ielts_judge/Scoring.py) |
+| Where is scoring coordinated? | [Scoring.py](../../code/shared/ielts_judge/Scoring.py) |
 | What text does the judge receive? | [Prompts.py](../../code/shared/ielts_judge/Prompts.py) |
 | What is a valid score response? | [Scores.py](../../code/shared/ielts_judge/Scores.py) |
 | How are loaded models connected? | [ScoringRuntime.py](../../code/shared/ielts_judge/ScoringRuntime.py) |
@@ -19,4 +19,4 @@ Start with the root manager, then read the shared service before platform adapte
 Class/function docstrings describe inputs and outputs. Annotations using `Any` mark dynamically shaped model, framework or record boundaries; they are not a claim of complete static type safety. Wire keys and historical artifact filenames keep their established spelling even though Python module filenames use PascalCase.
 
 
-[Documentation catalogue](../README.md)
+[Docs](../README.md)

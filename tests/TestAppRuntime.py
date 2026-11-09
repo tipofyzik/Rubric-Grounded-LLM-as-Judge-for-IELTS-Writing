@@ -100,7 +100,7 @@ class AppRuntimeTests(unittest.TestCase):
         spec.loader.exec_module(app)
         output = io.StringIO()
         with patch.object(app, "read_access", return_value={"HF_TOKEN": "NEVER_PRINT"}), \
-             patch.object(app, "preflight", return_value={"space": "https://example.invalid"}), \
+             patch.object(app, "preflight", return_value={"space": "https://example.invalid", "judge_endpoint": "judge"}), \
              patch.object(app, "RemoteJudge", side_effect=ImportError("Known dependency conflict")), \
              redirect_stdout(io.StringIO()), redirect_stderr(output):
             code = app.main([])

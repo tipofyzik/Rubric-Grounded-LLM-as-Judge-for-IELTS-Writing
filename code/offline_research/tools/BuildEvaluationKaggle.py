@@ -86,7 +86,7 @@ def build_bundle(output_root: Any=None) -> Any:
             or aes["provenance"]["train"] != experiment["train"] or corpus.manifest["train"] != experiment["train"]):
         raise ValueError("Accepted AES/corpus train provenance differs from prepared data")
     files = {}
-    for relative in ("code/offline_research/EvaluateModels.py", "code/shared/paths.yaml", "code/shared/config.yaml", "code/offline_research/requirements-evaluation.txt", "docs/model_evaluation_runbook.md",
+    for relative in ("code/offline_research/EvaluateModels.py", "code/shared/paths.yaml", "code/shared/config.yaml", "code/offline_research/requirements-evaluation.txt", "code/offline_research/evaluation/README.md",
                      "code/offline_research/tools/BuildEvaluationKaggle.py", "tests/TestModelEvaluation.py",
                      "code/shared/resources/ielts_criteria.yaml", "code/shared/resources/model_registry.yaml",
                      "code/offline_research/notebooks/ModelEvaluation.ipynb", "code/offline_research/notebooks/ModelEvaluationConfig.yaml", "code/offline_research/notebooks/ModelEvaluationModels.yaml",
@@ -101,7 +101,7 @@ def build_bundle(output_root: Any=None) -> Any:
                 files[source.relative_to(ROOT).as_posix()] = source
     hashes = {name: file_hash(path) for name, path in sorted(files.items())}
     bundle_id = inventory_id(hashes)
-    output = Path(output_root or ROOT / "results/stage8/kaggle") / (bundle_id[:12] + "-" + unique_name())
+    output = Path(output_root or ROOT / "results/evaluation/kaggle") / (bundle_id[:12] + "-" + unique_name())
     output.mkdir(parents=True, exist_ok=False)
     archive_path = output / "model_evaluation_bundle.zip"
     with zipfile.ZipFile(archive_path, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
@@ -123,7 +123,7 @@ def build_bundle(output_root: Any=None) -> Any:
         "Create a NEW notebook named IELTS Writing Model Evaluation and import the matching ModelEvaluation.ipynb.\n"
         "Attach only the new evaluation Dataset; enable GPU and Internet.\n"
         "Existing AES/PANDA/LLM Datasets and notebooks are not updated.\n"
-        "See docs/model_evaluation_runbook.md for pilot, resume, plot selection and exports.\n", encoding="utf-8")
+        "See code/offline_research/evaluation/README.md for pilot, resume, plot selection and exports.\n", encoding="utf-8")
     return output
 
 

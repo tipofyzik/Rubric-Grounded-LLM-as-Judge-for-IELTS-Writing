@@ -602,7 +602,7 @@ class ModelEvaluationTests(unittest.TestCase):
                                     capture_output=True, text=True, timeout=90)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertTrue(list((run / "reports").glob("*/metrics_summary.csv")))
-            self.assertFalse((project / "results/stage3").exists())
+            self.assertFalse((project / "results/aes").exists())
             self.assertFalse((project / "data/datasets").exists())
 
     def test_inference_uses_shared_chain_and_resumes_only_missing_jobs(self) -> None:

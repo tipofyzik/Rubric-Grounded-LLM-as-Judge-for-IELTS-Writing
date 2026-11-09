@@ -55,7 +55,7 @@ def main(command_arguments: Any=None) -> Any:
             result = readiness
         else:
             print("Loading the local scoring runtime; this may take about 20-30 seconds...", file=sys.stderr)
-            judge = RemoteJudge(values, readiness["space"])
+            judge = RemoteJudge(values, readiness["space"], readiness["judge_endpoint"])
             service = load_service(judge, values, current_arguments.setup)
             result = service.score(model_key=judge.profile.key, task_prompt=task, essay=essay)
         if current_arguments.output is not None:

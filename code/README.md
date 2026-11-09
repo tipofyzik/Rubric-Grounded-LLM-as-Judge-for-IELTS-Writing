@@ -7,4 +7,4 @@ The hosted and local apps let people score essays. The research tools prepare an
 - [`shared/`](shared/README.md) contains the scoring rules, interface and examples used by both apps.
 - [`offline_research/`](offline_research/README.md) prepares the data, trains the models and compares scoring methods.
 
-[Architecture](../docs/guides/01Architecture.md)
+[Architecture](../docs/guides/Architecture.md)

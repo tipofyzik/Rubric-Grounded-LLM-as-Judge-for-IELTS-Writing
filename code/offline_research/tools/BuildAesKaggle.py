@@ -54,5 +54,5 @@ def build(output: Any) -> Any:
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output',type=Path,default=ROOT/'results/aes_training/kaggle')
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output',type=Path,default=ROOT/'results/aes/kaggle')
     print(build(parser.parse_args().output))

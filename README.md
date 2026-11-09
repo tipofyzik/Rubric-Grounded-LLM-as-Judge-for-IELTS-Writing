@@ -1,28 +1,57 @@
 # IELTS Writing Evaluator
 
-This project studies how prompt engineering can improve small language models (SLMs) on a specialised task. IELTS Writing Task 2 is the test case.
+Score IELTS Writing Task 2 essays with a rubric-grounded Qwen judge. The demo accepts an English question and essay and returns four experimental criterion scores (integers from 0 to 9). It includes three examples and an English, Russian and German interface.
 
-Try one of three sample essays or submit your own question and essay. The demo gives separate estimates from 0 to 9 for Task Response, Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy.
+[Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install) · [Architecture](docs/guides/Architecture.md) · [Research](code/offline_research/README.md) · [Docs](docs/README.md)
 
-[Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install-and-run-locally) · [Architecture](#architecture) · [Kaggle](code/offline_research/notebooks/README.md) · [Docs](docs/README.md)
+The question and essay go to the judge on Hugging Face. Supabase receives an essay vector and fingerprint for reference search. [Data handling](docs/guides/Troubleshooting.md)
 
 ![The demo showing four scores for a sample essay](docs/media/Demo.jpg)
 
-## Prompting approach
+## Install
 
-A small language model judges one essay at a time (Zheng et al., 2023). To measure the effect of prompting, we keep the judge model fixed and change what the prompt provides alongside the question and essay.
+You need Python 3.11, access to a Hugging Face Space running the judge, a Supabase database with the matching corpus, and a compatible AES and PANDA release. The author's artifact repository is private. [Setup guide](docs/guides/Install.md)
 
-1. **IELTS rubric.** A condensed version of the official Task 2 band descriptors tells the judge what each band means for the four criteria.
-2. **PANDA notes.** The original PANDA method retrieves explanations of an expert model’s preferences (Liu et al., 2024). In this adaptation, the notes start from scores already recorded in the training dataset. For each criterion, the prompt asks for evidence that supports the assigned band and for the strengths and weaknesses that distinguish it from its neighboring bands. The judge receives the scores and notes from a similar training essay.
-3. **Preliminary scores.** A separate RoBERTa-based essay scorer estimates the four scores for the new essay from its text alone. The judge uses those estimates as guidance when making its own assessment.
+1. **Install dependencies.** Run from the repository root.
+
+   ```sh
+   python Manage.py install local
+   ```
+
+2. **Configure access.** Copy [`.env.example`](.env.example) to `.env` and set the Space ID, HF token, Supabase URL and publishable key. For a download, set the three `HF_ARTIFACT_*` values. [Settings](docs/guides/Install.md#configure-access)
+
+3. **Restore assets.** Run one command for your release source.
+
+   ```sh
+   # Hugging Face
+   python Manage.py setup --download-assets --warm-cache
+
+   # Local directory
+   python Manage.py setup --artifact-source "PATH_TO_RELEASE" --warm-cache
+   ```
+
+4. **Run the app.** Check the setup, start the app and score a sample essay. [Local UI](http://127.0.0.1:7860) · [CLI](code/local_backup/README.md)
+
+   ```sh
+   python Manage.py local --check
+   python Manage.py local
+   ```
+
+## Method
+
+The evaluation keeps the Qwen model fixed and varies the context supplied with the question and essay.
+
+- **Rubric.** Condensed IELTS Writing Task 2 band descriptors.
+- **PANDA.** Scores and generated notes from a similar training essay. The notes use the dataset's assigned scores and explain the evidence for each band.
+- **AES.** Preliminary scores from a RoBERTa-based model that reads only the essay.
 
 ## Architecture
 
-The hosted demo and local app share the same scoring engine. Both look up reference examples in Supabase and use the judge on Hugging Face. The local app makes the first score estimate on your machine.
+The hosted demo and local app share the same scoring engine. Both look up reference examples in Supabase and use the judge on Hugging Face. The local app runs the preliminary scorer and builds the search vector on your machine.
 
-[Architecture guide](docs/guides/01Architecture.md) · [Scoring flow](docs/guides/02ScoringFlow.md)
+[Scoring](docs/guides/Scoring.md) · [Code](code/README.md)
 
-## Demo verification
+## Verification
 
 The hosted demo was checked with new essays, simultaneous requests and a restart. The checks also covered scoring through the local app. [Demo verification](docs/DemoVerification.md)
 
@@ -36,28 +65,9 @@ On Kaggle, we tested six prompt variants with Qwen2.5-1.5B-Instruct, the model u
 | Qwen with rubric, PANDA notes and preliminary scores | 0.606 | 1.393 | 0.981 |
 | Essay scoring model alone | 0.607 | 1.391 | 0.980 |
 
-Quadratic weighted kappa (QWK) measures agreement on the ordered band scale. RMSE gives more weight to large errors. Both RMSE and MAE are in band points.
+Quadratic weighted kappa (QWK) measures agreement on the ordered band scale. Root mean squared error (RMSE) gives more weight to large errors. Mean absolute error (MAE) and RMSE are measured in band points.
 
-The full prompt reproduced 6,536 of the essay model’s 6,540 criterion scores. [Full results](docs/model_evaluation_report.md)
-
-## Install and run locally
-
-Use Python 3.11. From the repository root, install the local app.
-
-```sh
-python Manage.py install local
-```
-
-Copy [`.env.example`](.env.example) to `.env`. Use the [setup guide](docs/guides/04Installation.md) to configure Hugging Face, Supabase and access to a compatible model release.
-
-Download the model and reference files, then start the app.
-
-```sh
-python Manage.py setup --download-assets --warm-cache
-python Manage.py local
-```
-
-Open [http://127.0.0.1:7860](http://127.0.0.1:7860).
+The full prompt improved agreement over the base Qwen prompt. The standalone essay scorer led on all three aggregate metrics, and the full prompt returned the same score as that scorer in 6,536 of 6,540 cases. The comparison uses one run per setup and labels from the source datasets. [Full results](docs/model_evaluation_report.md) · [Evaluation protocol](docs/model_evaluation_protocol.md)
 
 ## References
 

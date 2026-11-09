@@ -57,6 +57,57 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(error.exception.code,'invalid_space')
         self.assertNotIn('never-print',str(error.exception))
 
+    def test_space_prefers_judge_and_accepts_older_deployments(self) -> None:
+        """Discover the endpoint exposed by the configured Space."""
+        from local_backup.Runtime import check_space
+
+        values = {"HF_SPACE_ID": "owner/demo", "HF_TOKEN": "fixture"}
+        for endpoints, expected in ((["stage5_judge", "judge"], "judge"), (["stage5_judge"], "stage5_judge")):
+            with self.subTest(endpoints=endpoints), patch("local_backup.Runtime.requests.get") as get:
+                get.return_value.status_code = 200
+                get.return_value.json.return_value = {"dependencies": [{"api_name": name} for name in endpoints]}
+                self.assertEqual(check_space(values), ("https://owner-demo.hf.space", expected))
+
+    def test_restore_imports_old_artifacts_into_current_paths(self) -> None:
+        """Restore a previous artifact layout without changing the verified input files."""
+        from RuntimeAssets import digest, restore
+        from ielts_judge.Paths import LEGACY_RELEASE_PATHS, RELEASE_PATHS, find_release
+
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            target = Path(temporary) / "target"
+            aes = source / LEGACY_RELEASE_PATHS["aes"]
+            panda = source / LEGACY_RELEASE_PATHS["panda"]
+            bundle = aes.parent / "bundle"
+            corpus = panda.parent / "corpus"
+            bundle.mkdir(parents=True)
+            corpus.mkdir(parents=True)
+            weights = bundle / "ordinal_model.pt"
+            records = corpus / "records.jsonl"
+            weights.write_bytes(b"test weights")
+            records.write_bytes(b"test records")
+            (bundle / "manifest.json").write_text(json.dumps({"artifacts": {weights.name: digest(weights)}}))
+            (corpus / "manifest.json").write_text(json.dumps({
+                "corpus_id": "fixture", "count": 1, "records_sha256": digest(records),
+            }))
+            aes.write_text(json.dumps({"bundle_path": bundle.name, "bundle_manifest_sha256": digest(bundle / "manifest.json")}))
+            panda.write_text(json.dumps({"corpus_path": corpus.relative_to(source).as_posix(), "corpus_id": "fixture", "count": 1}))
+            stale_release = source / RELEASE_PATHS["aes"]
+            stale_release.parent.mkdir(parents=True)
+            stale_release.write_text("{}")
+            (source / "ARTIFACT_MANIFEST.json").write_text(json.dumps({
+                "files": {path.relative_to(source).as_posix(): digest(path) for path in (aes, panda)},
+            }))
+            with patch("RuntimeAssets.ROOT", target):
+                self.assertEqual(restore(source), 6)
+                self.assertEqual(restore(source), 6)
+            restored_aes = find_release(target, "aes")
+            restored_panda = find_release(target, "panda")
+            self.assertEqual(restored_aes, target / RELEASE_PATHS["aes"])
+            self.assertEqual(restored_panda, target / RELEASE_PATHS["panda"])
+            self.assertEqual((restored_aes.parent / "aes_bundle" / weights.name).read_bytes(), weights.read_bytes())
+            self.assertEqual((target / json.loads(restored_panda.read_text())["corpus_path"] / records.name).read_bytes(), records.read_bytes())
+
     def test_selected_model_reaches_real_remote_adapter(self) -> None:
         """Verify that selected model reaches real remote adapter.
 

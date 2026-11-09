@@ -1,4 +1,4 @@
-# One submission from input to scores
+# Scoring
 
 
 1. UI snapshots the model key, English Task/Essay and selected display language. Editing inputs clears old results.
@@ -15,4 +15,4 @@ The public keys are `task_response`, `coherence_and_cohesion`, `lexical_resource
 The final judge input limit is 3,840 tokens with up to 256 output tokens. The combined character limit is 40,000. The service's 120-second deadline excludes time waiting in the UI queue. Native CPU/GPU calls already in flight are not guaranteed to be preemptible.
 
 
-[Documentation catalogue](../README.md)
+[Docs](../README.md)

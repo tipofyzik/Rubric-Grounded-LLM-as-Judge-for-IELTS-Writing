@@ -7,6 +7,7 @@ import sys
 ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parents if (candidate_path / "code/shared/paths.yaml").is_file())
 sys.path[:0] = [str(ROOT / "code"), str(ROOT / "code/shared")]
 from local_backup.Runtime import configure_environment
+from ielts_judge.Paths import find_release
 
 def main() -> None:
     """Parse command options and execute this component's command-line operation.
@@ -22,11 +23,11 @@ def main() -> None:
     from CpuWorker import CPUWorker
 
     torch.set_num_threads(2)
-    release_path = ROOT / "results/stage3/release.json"
+    release_path = find_release(ROOT, "aes")
     release = json.loads(release_path.read_text(encoding="utf-8"))
     bundle = release_path.parent / release["bundle_path"]
     aes = load_bundle(bundle, device="cpu")
-    corpus_release = json.loads((ROOT / "results/stage4/release.json").read_text(encoding="utf-8"))
+    corpus_release = json.loads(find_release(ROOT, "panda").read_text(encoding="utf-8"))
     manifest = json.loads((ROOT / corpus_release["corpus_path"] / "manifest.json").read_text(encoding="utf-8"))
     encoder = Encoder(manifest["embedding"], device="cpu")
     examples = json.loads((ROOT / "code/shared/resources/demo_examples.json").read_text(encoding="utf-8"))["examples"]

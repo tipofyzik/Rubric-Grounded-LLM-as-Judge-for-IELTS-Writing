@@ -34,11 +34,15 @@ def restore(source: Any) -> Any:
     Returns:
         Any: The computed result for the supplied inputs.
     """
+    from ielts_judge.Paths import RELEASE_PATHS, find_release
+
     source = Path(source).resolve()
-    aes_path = source / "results/stage3/release.json"
-    corpus_path = source / "results/stage4/release.json"
-    aes = json.loads(aes_path.read_text(encoding="utf-8"))
-    corpus = json.loads(corpus_path.read_text(encoding="utf-8"))
+    aes_path = find_release(source, "aes")
+    corpus_path = find_release(source, "panda")
+    aes_descriptor = aes_path.read_bytes()
+    corpus_descriptor = corpus_path.read_bytes()
+    aes = json.loads(aes_descriptor)
+    corpus = json.loads(corpus_descriptor)
     aes_root = (aes_path.parent / aes["bundle_path"]).resolve()
     corpus_root = (source / corpus["corpus_path"]).resolve()
     for path in (aes_root,corpus_root):
@@ -46,21 +50,54 @@ def restore(source: Any) -> Any:
     if digest(aes_root / "manifest.json") != aes["bundle_manifest_sha256"]:raise ValueError("AES manifest mismatch")
     aes_manifest = json.loads((aes_root/"manifest.json").read_text(encoding="utf-8"))
     current_corpus_manifest = json.loads((corpus_root/"manifest.json").read_text(encoding="utf-8"))
-    if current_corpus_manifest["corpus_id"] != corpus["corpus_id"]:raise ValueError("Corpus release mismatch")
+    if (current_corpus_manifest["corpus_id"], current_corpus_manifest["count"]) != (corpus["corpus_id"], corpus["count"]):
+        raise ValueError("Corpus release mismatch")
+    for name in aes_manifest["artifacts"]:
+        if Path(name).is_absolute() or ".." in Path(name).parts:
+            raise ValueError("AES artifact paths must be relative to the bundle")
     expected = {aes_root/name:sha for name,sha in aes_manifest["artifacts"].items()}
     expected[corpus_root/"records.jsonl"] = current_corpus_manifest["records_sha256"]
     for path, sha in expected.items():
         if not path.resolve().is_relative_to(source) or digest(path)!=sha:raise ValueError("Artifact content hash mismatch")
-    files = [aes_path,corpus_path,aes_root/"manifest.json",corpus_root/"manifest.json",*expected]
+    aes_destination = aes_root.relative_to(source)
+    corpus_destination = corpus_root.relative_to(source)
+    if aes_path.relative_to(source) != RELEASE_PATHS["aes"]:
+        aes_destination = RELEASE_PATHS["aes"].parent / "aes_bundle"
+        aes_descriptor = json.dumps({
+            "paths_relative_to": "this_file_parent",
+            "bundle_path": aes_destination.name,
+            "bundle_manifest_sha256": aes["bundle_manifest_sha256"],
+        }, indent=2).encode("utf-8") + b"\n"
+    if corpus_path.relative_to(source) != RELEASE_PATHS["panda"]:
+        corpus_destination = RELEASE_PATHS["panda"].parent / "corpus"
+        corpus_descriptor = json.dumps({
+            "corpus_path": corpus_destination.as_posix(),
+            "corpus_id": current_corpus_manifest["corpus_id"],
+            "count": corpus["count"],
+        }, indent=2).encode("utf-8") + b"\n"
+    files = {aes_destination / name: aes_root / name for name in ("manifest.json", *aes_manifest["artifacts"])}
+    files.update({corpus_destination / name: corpus_root / name for name in ("manifest.json", "records.jsonl")})
+    descriptors = {RELEASE_PATHS["aes"]: aes_descriptor, RELEASE_PATHS["panda"]: corpus_descriptor}
     # Validate all existing destination files before copying, without overwriting another release.
-    for path in files:
-        destination = ROOT/path.relative_to(source)
-        if destination.exists() and digest(destination)!=digest(path):raise FileExistsError("Different artifact already exists: "+str(destination.relative_to(ROOT)))
-    for path in files:
-        destination = ROOT/path.relative_to(source)
-        destination.parent.mkdir(parents=True,exist_ok=True)
-        if not destination.exists():shutil.copy2(path,destination)
-    return len(files)
+    for relative, path in files.items():
+        destination = ROOT / relative
+        if destination.exists() and digest(destination) != digest(path):
+            raise FileExistsError(f"Different artifact already exists: {relative}")
+    for relative, content in descriptors.items():
+        destination = ROOT / relative
+        if destination.exists() and destination.read_bytes() != content:
+            raise FileExistsError(f"Different release descriptor already exists: {relative}")
+    for relative, path in files.items():
+        destination = ROOT / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if not destination.exists():
+            shutil.copy2(path, destination)
+    for relative, content in descriptors.items():
+        destination = ROOT / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if not destination.exists():
+            destination.write_bytes(content)
+    return len(files) + len(descriptors)
 
 
 def main() -> int:
@@ -70,7 +107,7 @@ def main() -> int:
         int: The computed result for the supplied inputs.
     """
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--artifact-source",type=Path,help="Directory with verified results/stage3 and results/stage4 releases")
+    parser.add_argument("--artifact-source",type=Path,help="Directory containing the verified AES and PANDA releases")
     parser.add_argument("--download-assets",action="store_true",help="Fetch user-configured immutable HF artifact repository")
     parser.add_argument("--cache-source",type=Path,help="Optional existing Hugging Face cache; copy model directories only")
     parser.add_argument("--warm-cache",action="store_true")
@@ -94,9 +131,10 @@ def main() -> int:
         from transformers import AutoTokenizer
         from sentence_transformers import SentenceTransformer
         from ielts_judge.ModelRegistry import ModelRegistry
+        from ielts_judge.Paths import find_release
         profile=ModelRegistry().require_enabled(os.environ.get("IELTS_MODEL_KEY","qwen25_1p5b"))
         AutoTokenizer.from_pretrained(profile.repo_id,revision=profile.revision,token=os.environ.get("HF_TOKEN"))
-        release=json.loads((ROOT/"results/stage4/release.json").read_text(encoding="utf-8"))
+        release=json.loads(find_release(ROOT, "panda").read_text(encoding="utf-8"))
         embedding=json.loads((ROOT/release["corpus_path"]/"manifest.json").read_text(encoding="utf-8"))["embedding"]
         SentenceTransformer(embedding["model_id"],revision=embedding["revision"],device="cpu",token=os.environ.get("HF_TOKEN"))
         print("Pinned judge tokenizer and BGE model are ready")

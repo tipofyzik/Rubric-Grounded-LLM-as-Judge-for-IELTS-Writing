@@ -46,16 +46,16 @@ def main() -> Any:
     from transformers import AutoTokenizer
     from offline_research.aes.Training import aes_options, run_aes
     from ielts_judge.data.Experiment import prepare_experiment
-    from offline_research.PrepareData import load_data
+    from offline_research.PrepareData import load_data, task_options
     config = yaml.safe_load(current_arguments.config.read_text(encoding="utf-8"))
-    if config["stage_switch"].get("transform_datasets"):
+    if task_options(config).get("transform_datasets"):
         raise ValueError("AES commands require an existing release; set transform_datasets: 0")
     if current_arguments.command == "train" and current_arguments.require_cuda and not torch.cuda.is_available():
         raise RuntimeError("CUDA is required: select a GPU accelerator in Kaggle")
     train, pool, _ = load_data(config)
     selected, experiment = prepare_experiment(train, pool, config=config.get("evaluation"),
                                              source=config.get("dataset", {}).get("source", "combined"))
-    output = current_arguments.output or Path("results/stage3") / uuid4().hex
+    output = current_arguments.output or ROOT / "results/aes/runs" / uuid4().hex
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "experiment_manifest.json", experiment)
     options = aes_options(config.get("aes"))

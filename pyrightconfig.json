@@ -1,7 +1,7 @@
 {
   "include": ["code"],
   "exclude": ["**/__pycache__", "**/artifacts", "**/.cache"],
-  "extraPaths": ["code", "code/shared", "tests", "tests/kaggle", "code/offline_research/legacy/stage1_space"],
+  "extraPaths": ["code", "code/shared", "tests", "tests/kaggle"],
   "typeCheckingMode": "standard",
   "pythonVersion": "3.11"
 }

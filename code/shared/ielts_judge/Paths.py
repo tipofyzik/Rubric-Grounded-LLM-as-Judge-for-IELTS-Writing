@@ -1,6 +1,7 @@
 """Load project filesystem locations from the root paths.yaml file."""
 from typing import Any
 
+import json
 from pathlib import Path
 from pathlib import PureWindowsPath
 
@@ -9,6 +10,22 @@ import yaml
 
 PROJECT_ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parents if (candidate_path / "code/shared/paths.yaml").is_file())
 PATHS_CONFIG_PATH = PROJECT_ROOT / "code/shared/paths.yaml"
+RELEASE_PATHS = {"aes": Path("results/aes/release.json"), "panda": Path("results/panda/release.json")}
+LEGACY_RELEASE_PATHS = {"aes": Path("results/stage3/release.json"), "panda": Path("results/stage4/release.json")}
+
+
+def find_release(root: Path, name: str) -> Path:
+    """Select a release from the artifact inventory or the local checkout."""
+    current = root / RELEASE_PATHS[name]
+    legacy = root / LEGACY_RELEASE_PATHS[name]
+    inventory = root / "ARTIFACT_MANIFEST.json"
+    if inventory.is_file():
+        files = json.loads(inventory.read_text(encoding="utf-8"))["files"]
+        for path in (current, legacy):
+            if path.relative_to(root).as_posix() in files:
+                return path
+        raise FileNotFoundError(f"Artifact inventory is missing the {name} release")
+    return current if current.exists() or not legacy.is_file() else legacy
 
 
 def _resolve_paths(value: Any, root: Any=PROJECT_ROOT) -> Any:

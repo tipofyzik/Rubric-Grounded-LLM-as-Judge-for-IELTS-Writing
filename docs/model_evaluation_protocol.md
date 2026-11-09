@@ -41,11 +41,10 @@ AES sees Essay only. Mapping its first output to `task_response` does not make
 that estimate sensitive to Task. AES and BGE use a 512-token input limit and
 record truncation; the judge's Task/Essay text is not silently truncated.
 
-The permanent local run is `results/stage8/runs/20261104T160302Z-470168bdfc/`.
-`results/stage8/baseline_archive.json` records all 201 file hashes and the
-byte-for-byte copy check. The supplied TEMP directory is retained. The run
-contains exact selected IDs, labels, contexts, raw predictions, environment and
-timings. These local/private inputs are not committed to the public repository.
+The local baseline is `results/evaluation/runs/20261104T160302Z-470168bdfc/`.
+The archive inventory records 201 file hashes. The run contains selected IDs,
+labels, contexts, raw predictions, environment and timings. These are private
+research artifacts.
 
 ## Data and leakage boundaries
 

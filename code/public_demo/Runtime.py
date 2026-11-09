@@ -58,7 +58,7 @@ def restore_artifacts(root: Path, deployment: dict[str, Any]) -> Path:
 
 
 def validate_payload(payload: dict[str, Any], model_key: str) -> float:
-    """Keep the existing stage5_judge payload and optionally carry a deadline.
+    """Validate the judge request and its optional deadline.
     
     Args:
         payload (dict[str, Any]): Payload used by this operation.

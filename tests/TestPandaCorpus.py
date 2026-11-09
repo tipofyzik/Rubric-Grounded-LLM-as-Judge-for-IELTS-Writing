@@ -1088,7 +1088,7 @@ class PandaCorpusTests(unittest.TestCase):
         archive=self.path/"bundle.zip"
         with patch.object(module,"ROOT",project), patch.object(module,"build",return_value=archive) as build, patch("builtins.print"):
             self.assertEqual(module.main([]),archive)
-            build.assert_called_once_with(project/"results/panda_generation/kaggle",None)
+            build.assert_called_once_with(project/"results/panda/kaggle",None)
             build.reset_mock()
             destination,prepared=self.path/"custom-output",self.path/"prepared"
             self.assertEqual(module.main(["--output",str(destination),"--prepared",str(prepared)]),archive)

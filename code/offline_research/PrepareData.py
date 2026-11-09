@@ -1,4 +1,4 @@
-"""Run explicitly enabled research stages against a verified local Parquet release."""
+"""Run enabled research tasks against a verified Parquet release."""
 from typing import Any
 
 from pathlib import Path
@@ -22,6 +22,11 @@ from offline_research.data.Runtime import convert_to_llm_dataset, export_referen
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
 
 
+def task_options(config: dict[str, Any]) -> dict[str, Any]:
+    """Read task settings from current or saved research configs."""
+    return config["tasks"] if "tasks" in config else config["stage_switch"]
+
+
 def load_data(config: Any) -> Any:
     """Load data.
 
@@ -39,7 +44,7 @@ def load_data(config: Any) -> Any:
             "save_intermediate_datasets", False
         ),
     )
-    if config["stage_switch"].get("transform_datasets"):
+    if task_options(config).get("transform_datasets"):
         transformer.prepare_and_save(PATHS["datasets"]["prepared"])
     return transformer.load_processed(
         PATHS["datasets"]["prepared"],
@@ -59,7 +64,7 @@ def main(*, prepare_only: bool=False, selection_manifest: Any=None, run_director
         Any: The computed result for the supplied inputs.
     """
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
-    switch = config["stage_switch"]
+    switch = task_options(config)
     train, test_pool, manifest = load_data(config)
     print(
         f"Verified Parquet: train={len(train):,}, test pool={len(test_pool):,}; source={config.get('dataset', {}).get('source', 'combined')}"
@@ -200,7 +205,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prepare-only", action="store_true", help="Save selection metadata without model stages")
+    parser.add_argument("--prepare-only", action="store_true", help="Save selection metadata without running models")
     parser.add_argument("--selection-manifest", type=Path, help="Replay a saved selection in a new run directory")
     parser.add_argument("--run-directory", type=Path, help="Use an existing run and its saved selection")
     current_arguments = parser.parse_args()

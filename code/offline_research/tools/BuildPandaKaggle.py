@@ -445,7 +445,7 @@ def main(command_arguments: Any=None) -> Any:
     parser.add_argument(
         "--output",
         type=Path,
-        default=ROOT / "results" / "panda_generation" / "kaggle",
+        default=ROOT / "results/panda/kaggle",
         help="Destination directory (default: %(default)s)",
     )
     parser.add_argument("--prepared", type=Path)

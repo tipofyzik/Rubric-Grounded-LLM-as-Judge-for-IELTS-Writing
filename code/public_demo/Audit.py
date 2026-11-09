@@ -36,11 +36,20 @@ def main() -> None:
     for name, digest in deployment["files"].items():
         assert file_hash(destination / name) == digest, name
     base = "https://" + deployment["space_id"].replace("/", "-") + ".hf.space"
+    artifact_root = Path(snapshot_download(
+        deployment["artifact_repo"], repo_type="model", revision=deployment["artifact_revision"],
+        token=values["HF_TOKEN"], allow_patterns=["ARTIFACT_MANIFEST.json"],
+        local_dir=destination.parent / "artifacts",
+    ))
+    artifact_manifest = artifact_root / "ARTIFACT_MANIFEST.json"
+    assert file_hash(artifact_manifest) == deployment["artifact_manifest_sha256"]
+    artifact_files = json.loads(artifact_manifest.read_text(encoding="utf-8"))["files"]
+    protected_files = [name for name in artifact_files if name.endswith(("/ordinal_model.pt", "/records.jsonl"))]
+    assert len(protected_files) == 2
     checks = []
     urls = [
         "https://huggingface.co/" + deployment["artifact_repo"] + "/resolve/" + deployment["artifact_revision"] + "/ARTIFACT_MANIFEST.json",
-        base + "/gradio_api/file=/app/.runtime/artifacts/results/stage3/2026-10-24/kaggle-e20-b16/aes_bundle/ordinal_model.pt",
-        base + "/gradio_api/file=/app/.runtime/artifacts/results/stage4/corpus-f71532c72bc4/corpus/records.jsonl",
+        *(base + "/gradio_api/file=/app/.runtime/artifacts/" + name for name in protected_files),
         base + "/gradio_api/file=/home/user/app/.runtime/artifacts/ARTIFACT_MANIFEST.json",
         base + "/gradio_api/file=/app/DEPLOYMENT.json",
     ]

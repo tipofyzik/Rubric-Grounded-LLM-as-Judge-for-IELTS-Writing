@@ -44,7 +44,7 @@ def main(command_arguments: Any=None) -> int:
             "Loading AES, retrieval encoder and judge tokenizer from the local cache...",
             flush=True,
         )
-        judge = RemoteJudge(values, ready["space"])
+        judge = RemoteJudge(values, ready["space"], ready["judge_endpoint"])
         service = load_service(judge, values, "rubric_panda_aes")
     except LauncherError as error:
         print(f"Startup failed ({error.code}): {error}", file=sys.stderr)

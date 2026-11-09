@@ -497,7 +497,7 @@ class DatasetIntegrationTests(unittest.TestCase):
         self.rows['writing9']['train'] = [self.new(scores=(6, 6, 6, 6), essay=f'Train {current_index}', source_id=f'tr-{current_index}') for current_index in range(4)]
         self.rows['writing9']['test'] = [self.new(scores=(6, 6, 6, 6), essay=f'Test {current_index}', source_id=f'te-{current_index}') for current_index in range(3)]
         self.write()
-        config = {'stage_switch': {'transform_datasets': 1}, 'dataset': {'source': 'combined',
+        config = {'tasks': {'transform_datasets': 1}, 'dataset': {'source': 'combined',
                   'selection': dict(enabled=True, train_per_group=2, test_per_group=1, seed=42)}}
         with patch.dict(PATHS, datasets={'source_root': str(self.input), 'prepared': str(self.output)}):
             train, test, _ = runner.load_data(config)

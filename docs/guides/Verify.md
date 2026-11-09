@@ -1,7 +1,7 @@
-# Verification and release
+# Verify
 
 
-`python Manage.py test --suite portable` runs CPU contract checks without source datasets, pretrained weights, `.env` or hosted calls. `--suite all` also covers main, legacy notebook and deployment suites and requires their configured local fixtures. SQL contracts use the local JavaScript/PGlite harness. These checks do not measure grading quality.
+`python Manage.py test --suite portable` runs CPU contract checks without source datasets, pretrained weights, `.env` or hosted calls. The `all` suite runs the main, legacy notebook and deployment suites, which use their configured local fixtures. SQL checks run separately. See the [test guide](../../tests/README.md) for dependency installation and commands. The model comparison measures grading agreement separately.
 
 For the final demo also verify: three examples, one fresh own input, input rejection, EN/RU/DE state preservation, stale-score clearing, session separation, queue behavior, restart and local fallback. Use controlled fixtures for provider faults rather than deliberately corrupting the production database. Record the exact source revision and which checks actually ran.
 
@@ -9,4 +9,4 @@ Before publishing, review the changes and check that the release contains the so
 
 Run `python Manage.py source-zip output/ielts-demo-source.zip` into a new filename and inspect a clean extraction. The owner publishes the reviewed changes. The GitHub workflow becomes remote evidence only after that commit is pushed and its run succeeds; local tests do not establish remote CI success for an unpublished commit.
 
-[Documentation catalogue](../README.md)
+[Docs](../README.md)

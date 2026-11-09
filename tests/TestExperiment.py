@@ -227,7 +227,7 @@ class MainExperimentTests(unittest.TestCase):
         self.root = Path(folder.name)
         self.train, self.pool = rows("train", 8), rows("test", 12)
         self.config_path = self.root / "config.yaml"
-        self.config = {"stage_switch": {}, "dataset": {"source": "combined"},
+        self.config = {"tasks": {}, "dataset": {"source": "combined"},
                        "evaluation": {"sample_size": 3, "seed": 42}, "inference": {"runs": 1}}
         self.paths = deepcopy(PATHS)
         self.paths["results"]["dataset_runs"] = str(self.root / "runs")
@@ -263,7 +263,7 @@ class MainExperimentTests(unittest.TestCase):
         Returns:
             None: This operation returns no value.
         """
-        self.config["stage_switch"] = {"train_custom_regressor": 1, "panda_evaluation": 1}
+        self.config["tasks"] = {"train_custom_regressor": 1, "panda_evaluation": 1}
         train, selected, _ = self.run_main(prepare_only=True)
         self.assertEqual((len(train), len(selected)), (8, 3))
         first = self.manifests()[0]
@@ -413,7 +413,7 @@ class MainExperimentTests(unittest.TestCase):
             "offline_research.llm.LLMResponseObtainer": SimpleNamespace(LLMResponseObtainer=Obtainer),
             "offline_research.panda.Panda": SimpleNamespace(PANDA=Panda),
         }
-        self.config["stage_switch"] = dict.fromkeys(
+        self.config["tasks"] = dict.fromkeys(
             ("train_custom_regressor", "fine_tune_llm", "get_llm_predictions", "panda_evaluation"), 1)
         with ExitStack() as stack:
             for name, replacement in modules.items():

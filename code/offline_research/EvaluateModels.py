@@ -29,7 +29,7 @@ def main(command_arguments: Any=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=ROOT / "code/offline_research/notebooks/ModelEvaluationConfig.yaml")
     parser.add_argument("--mode", choices=("prepare", "infer", "report", "all"), default="all")
-    parser.add_argument("--output-root", type=Path, default=ROOT / "results/stage8/runs")
+    parser.add_argument("--output-root", type=Path, default=ROOT / "results/evaluation/runs")
     parser.add_argument("--resume-run", type=Path, help="Explicit existing run; settings and source must match")
     parser.add_argument("--max-jobs", type=int, help="Stop after this many new jobs; resume later")
     parser.add_argument("--export", action="store_true", help="Create a new results ZIP after this invocation")

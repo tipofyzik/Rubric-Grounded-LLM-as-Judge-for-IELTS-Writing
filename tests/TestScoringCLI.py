@@ -44,7 +44,9 @@ class ManualLauncherTests(unittest.TestCase):
         output = io.StringIO()
         with ExitStack() as stack:
             stack.enter_context(patch.object(launcher, "read_access", return_value={"HF_TOKEN": "NEVER_PRINT"}))
-            stack.enter_context(patch.object(launcher, "preflight", return_value={"status":"ready","space":"https://example.invalid"}))
+            stack.enter_context(patch.object(launcher, "preflight", return_value={
+                "status": "ready", "space": "https://example.invalid", "judge_endpoint": "judge",
+            }))
             judge = stack.enter_context(patch.object(launcher, "RemoteJudge"))
             judge.return_value.profile.key = "qwen25_1p5b"
             stack.enter_context(patch.object(launcher, "load_service", return_value=self.service))

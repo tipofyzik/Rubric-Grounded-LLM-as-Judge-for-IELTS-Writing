@@ -13,6 +13,7 @@ ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parent
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from Runtime import file_hash
+from ielts_judge.Paths import RELEASE_PATHS
 
 CORE = (
     "__init__.py", "Paths.py", "Criteria.py", "ModelRegistry.py", "Localization.py",
@@ -47,7 +48,7 @@ def prepare_artifacts(destination: Path) -> dict[str, Any]:
     Returns:
         dict[str, Any]: The computed result for the supplied inputs.
     """
-    sources = [ROOT / "results/stage3/release.json", ROOT / "results/stage4/release.json"]
+    sources = [ROOT / RELEASE_PATHS[name] for name in ("aes", "panda")]
     aes = json.loads(sources[0].read_text(encoding="utf-8"))
     corpus = json.loads(sources[1].read_text(encoding="utf-8"))
     for directory in (sources[0].parent / aes["bundle_path"], ROOT / corpus["corpus_path"]):
