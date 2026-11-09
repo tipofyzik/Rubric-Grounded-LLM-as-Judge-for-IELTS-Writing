@@ -1,13 +1,11 @@
 # Scoring engine
 
-Start at [`Scoring.py`](Scoring.py) to follow a submission. It gets a first estimate, looks up similar essays, and calls the judge. [`Prompts.py`](Prompts.py) builds the prompt and [`Scores.py`](Scores.py) reads and validates the four scores.
+Every submission goes through this code. It makes a first estimate, finds scored examples, puts together the instructions for the judge, and checks the reply. Start at [`Scoring.py`](Scoring.py) to follow the whole process.
 
-| Part | What it does |
-| --- | --- |
-| [`aes/`](aes/README.md) | Estimates scores from the essay text |
-| [`Database.py`](Database.py) and [`panda/`](panda/README.md) | Search for similar essays and read their scores and notes |
-| [`llm/`](llm/README.md) | Loads and runs the judge model |
-| [`Ui.py`](Ui.py) and [`Localization.py`](Localization.py) | Build the Gradio form and load its translations |
-| [`data/`](data/README.md) | Reads the dataset and selects essays for experiments |
+- [`aes/`](aes/README.md) makes the first estimate from the essay text.
+- [`Database.py`](Database.py) finds similar essays. [`panda/`](panda/README.md) handles the example scores and notes.
+- [`Prompts.py`](Prompts.py) puts the rubric and examples into the prompt. [`llm/`](llm/README.md) runs the judge, and [`Scores.py`](Scores.py) checks the scores it returns.
+- [`Ui.py`](Ui.py) builds the form, and [`Localization.py`](Localization.py) loads the translations.
+- [`data/`](data/README.md) helps the research tools work with the same essay dataset.
 
 [Scoring flow](../../../docs/guides/02ScoringFlow.md)

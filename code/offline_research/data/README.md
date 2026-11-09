@@ -1,8 +1,5 @@
 # Prepare the dataset
 
-[`PrepareData.py`](../PrepareData.py) is the entry point. It prepares a common dataset from Chillies and Writing9 for training and evaluation.
+The project combines scored essays from Chillies and Writing9 into one dataset. This part cleans the source data, removes duplicates and keeps the essays for training and testing separate.
 
-- [`DatasetTransformer.py`](DatasetTransformer.py) reads and cleans the source essays.
-- [`Profiles.py`](Profiles.py) defines score groups. [`Selection.py`](Selection.py) chooses essays using those groups.
-- [`Writer.py`](Writer.py) saves the train and test splits. [`Runtime.py`](Runtime.py) turns those rows into model inputs.
-- [`Analysis.py`](Analysis.py) and [`RawDataAnalyzer.py`](RawDataAnalyzer.py) summarize the prepared and source data.
+[`PrepareData.py`](../PrepareData.py) starts the process. [`DatasetTransformer.py`](DatasetTransformer.py) reads and cleans the sources, [`Selection.py`](Selection.py) picks essays, and [`Writer.py`](Writer.py) saves the result. [`Analysis.py`](Analysis.py) summarizes the prepared data.

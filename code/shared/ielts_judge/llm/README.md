@@ -1,6 +1,5 @@
 # Judge model
 
-[`Judge.py`](Judge.py) loads the model, checks the prompt length and asks the model to score an essay.
+The judge model takes a prompt and produces the final score estimates. The scoring engine checks its reply before showing the result.
 
-- [`Generation.py`](Generation.py) generates the reply.
-- [`JsonEosBlocker.py`](JsonEosBlocker.py) blocks the model's end token while the score object is incomplete.
+[`Judge.py`](Judge.py) loads the model and sends it the prompt. [`Generation.py`](Generation.py) collects its reply.

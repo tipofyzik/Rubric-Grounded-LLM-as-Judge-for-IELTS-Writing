@@ -13,10 +13,10 @@ models:
 
 # Hosted demo
 
-This Hugging Face Space runs the Gradio app for IELTS Writing Task 2.
+The browser demo runs here on Hugging Face. When someone submits a question and essay, it looks up a similar scored example in Supabase and asks Qwen for the final scores.
 
-- [`App.py`](App.py) starts Gradio and connects the scoring engine to Supabase.
-- [`CpuWorker.py`](CpuWorker.py) estimates scores and prepares the similarity search query.
-- [`Runtime.py`](Runtime.py) fetches the model and reference files and connects scoring requests to Qwen on the GPU.
+- [`App.py`](App.py) starts the app.
+- [`CpuWorker.py`](CpuWorker.py) makes the first estimate and prepares the essay for search.
+- [`Runtime.py`](Runtime.py) gets the files the demo needs and sends scoring requests to Qwen.
 
 [Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Source](https://github.com/tipofyzik/Rubric-Grounded-LLM-as-Judge-for-IELTS-Writing) · [Deployment](https://github.com/tipofyzik/Rubric-Grounded-LLM-as-Judge-for-IELTS-Writing/blob/main/docs/guides/05Deployment.md)

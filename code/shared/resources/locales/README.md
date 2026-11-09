@@ -1,5 +1,5 @@
 # UI translations
 
-[`en.json`](en.json) · [`ru.json`](ru.json) · [`de.json`](de.json)
+The app reads its form labels, buttons and messages from these files. The same labels are available in [English](en.json), [Russian](ru.json) and [German](de.json).
 
-When adding a label or message to the interface, add the same key to each file with its English, Russian or German text.
+When you add a label, use the same key in all three files.

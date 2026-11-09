@@ -1,6 +1,8 @@
-# PANDA experiment settings
+# PANDA settings
 
-- [`panda_generation.yaml`](panda_generation.yaml) selects the model, prompt format and batch settings.
-- [`panda_comparison.json`](panda_comparison.json) defines the two prompt variants used in the comparison.
+These files tell the research tools how to generate notes for scored essays and how to compare different ways of asking for those notes.
 
-[Generate PANDA notes](../panda/README.md)
+- [`panda_generation.yaml`](panda_generation.yaml) chooses the model and how it writes the notes.
+- [`panda_comparison.json`](panda_comparison.json) defines the two prompts used in the comparison.
+
+[Reference notes](../panda/README.md)

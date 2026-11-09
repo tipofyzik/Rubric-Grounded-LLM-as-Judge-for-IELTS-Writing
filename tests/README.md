@@ -1,18 +1,16 @@
 # Tests
 
-## Run
+These checks cover what the app returns, how it handles errors and whether the research tools can use the same data. The portable suite uses small local examples and models.
 
-With the test dependencies installed, run the portable suite from the repository root.
+With the test dependencies installed, run this from the repo root.
 
 ```sh
 python Manage.py test --suite portable
 ```
 
-It uses local fixtures to check scoring, model output, retrieval errors and evaluation. See [Verification](../docs/guides/07Verification.md) for the full test suite and database checks.
+- [`TestScoringService.py`](TestScoringService.py) checks the path from an essay to its scores.
+- [`TestUILocalization.py`](TestUILocalization.py) checks what happens when users switch languages.
+- [`TestDatasetIntegration.py`](TestDatasetIntegration.py) checks data preparation. [`TestPandaCorpus.py`](TestPandaCorpus.py) checks the collection of scored examples.
+- [`TestDistribution.py`](TestDistribution.py) checks the source package. [Kaggle tests](kaggle/README.md) cover the notebook setup.
 
-## Find a test
-
-- [`TestScoringService.py`](TestScoringService.py) covers an essay submission from input to scores.
-- [`TestJudge.py`](TestJudge.py) and [`TestUILocalization.py`](TestUILocalization.py) cover judge replies and UI language switching.
-- [`TestDatasetIntegration.py`](TestDatasetIntegration.py), [`TestPandaCorpus.py`](TestPandaCorpus.py) and [`TestDatabase.mjs`](TestDatabase.mjs) cover data preparation, the reference set and search.
-- [`TestDistribution.py`](TestDistribution.py) and the [Kaggle tests](kaggle/README.md) check the source package and notebook setup.
+[Full test suite](../docs/guides/07Verification.md)

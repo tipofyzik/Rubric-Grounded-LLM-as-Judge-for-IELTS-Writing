@@ -1,11 +1,7 @@
-# Generate PANDA notes
+# Notes for reference essays
 
-PANDA asks a language model to explain the existing scores on training essays. When the app scores a new essay, it can give the judge the notes from a similar one.
+The PANDA adaptation asks a language model to explain scores already assigned to training essays. The prompt asks for evidence for each score and compares it with the neighboring bands. The app can then show the judge those notes when a new essay resembles one of the examples.
 
-Start at [`ManageCorpus.py`](../ManageCorpus.py) to generate the notes or build the reference set.
+Start at [`ManageCorpus.py`](../ManageCorpus.py) to generate notes or prepare the reference collection. [`Generation.py`](Generation.py) writes the notes, and [`Corpus.py`](Corpus.py) pairs them with the essays and scores for search.
 
-- [`InsightGenerator.py`](InsightGenerator.py) builds prompts for the notes. [`Generation.py`](Generation.py) runs them in batches.
-- [`Corpus.py`](Corpus.py) joins the saved notes to the scored essays and prepares the reference set for search.
-- [`RetrievalEvaluator.py`](RetrievalEvaluator.py) tests scoring with retrieved examples.
-
-[Generation settings](../resources/README.md) · [Kaggle](../notebooks/README.md)
+[Settings](../resources/README.md) · [Kaggle](../notebooks/README.md)

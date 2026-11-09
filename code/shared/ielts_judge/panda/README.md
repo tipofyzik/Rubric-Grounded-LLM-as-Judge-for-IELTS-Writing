@@ -1,8 +1,7 @@
-# Reference set
+# Reference essays
 
-A reference record holds a training essay, its scores, the notes about those scores and a vector used to find similar essays.
+Scored training essays give the judge examples to work from. This code reads and checks the collection the app searches when it needs a similar essay.
 
-- [`Artifacts.py`](Artifacts.py) validates the saved notes and converts essay text into search vectors.
-- [`Corpus.py`](Corpus.py) reads and checks the reference set used for search and import.
+[`Artifacts.py`](Artifacts.py) reads the saved notes and prepares essays for search. [`Corpus.py`](Corpus.py) checks and reads the reference collection.
 
 [Generate PANDA notes](../../../offline_research/panda/README.md)

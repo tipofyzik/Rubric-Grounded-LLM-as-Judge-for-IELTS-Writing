@@ -1,11 +1,11 @@
 # Research
 
-The research code prepares the data used by the demo and compares ways to score an essay.
+The research tools produce the essay dataset, the model that makes the first estimate, and the examples the app uses for comparison. They also measure how well different scoring methods match the dataset scores.
 
-- [`data/`](data/README.md) cleans scored essays and builds the train and test splits.
-- [`aes/`](aes/README.md) trains a model to estimate scores from the essay text.
-- [`panda/`](panda/README.md) generates notes on scored training essays and builds the reference set.
-- [`evaluation/`](evaluation/README.md) compares predictions with the scores in the test set.
-- [`llm/`](llm/README.md) contains the fine-tuning and inference tools used in earlier experiments.
+- [Data preparation](data/README.md) cleans and groups essays for training and testing.
+- [Essay scoring model](aes/README.md) trains a model to estimate scores from the essay alone.
+- [PANDA notes](panda/README.md) explains the scores on training essays and prepares them for search.
+- [Model evaluation](evaluation/README.md) compares prompts on the same test essays.
+- [Scoring prompt runs](llm/README.md) sends scoring prompts to models and saves their replies.
 
 [Kaggle](notebooks/README.md) · [Results](../../docs/model_evaluation_report.md)

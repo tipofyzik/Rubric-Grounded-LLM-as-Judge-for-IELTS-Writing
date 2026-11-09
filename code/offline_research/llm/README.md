@@ -1,6 +1,5 @@
-# Language model experiments
+# Scoring prompt runs
 
-The [legacy Kaggle notebook](../notebooks/KaggleNotebook.ipynb) uses these modules to fine-tune models and collect their replies.
+[`LLMResponseObtainer.py`](LLMResponseObtainer.py) sends scoring prompts to a local or hosted model and saves the replies. The saved replies can be compared with the dataset scores.
 
-- [`LLMFineTuner.py`](LLMFineTuner.py) trains a language model on scored essays.
-- [`LLMResponseObtainer.py`](LLMResponseObtainer.py) sends prompts to a local or hosted model and saves its replies.
+[Model evaluation](../evaluation/README.md)

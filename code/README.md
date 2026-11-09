@@ -1,8 +1,10 @@
-# Project layout
+# Code
 
-- [`public_demo/`](public_demo/README.md) runs the Gradio app on Hugging Face Spaces.
-- [`local_backup/`](local_backup/README.md) runs the app and CLI locally and calls the hosted judge.
-- [`shared/`](shared/README.md) contains the scoring engine, UI and app resources used by both.
-- [`offline_research/`](offline_research/README.md) prepares datasets, trains models and runs experiments.
+The hosted and local apps let people score essays. The research tools prepare and evaluate the models behind them.
+
+- [`public_demo/`](public_demo/README.md) runs the browser demo on Hugging Face.
+- [`local_backup/`](local_backup/README.md) lets you score essays on your machine through the browser or terminal.
+- [`shared/`](shared/README.md) contains the scoring rules, interface and examples used by both apps.
+- [`offline_research/`](offline_research/README.md) prepares the data, trains the models and compares scoring methods.
 
 [Architecture](../docs/guides/01Architecture.md)

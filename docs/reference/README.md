@@ -1,9 +1,9 @@
 # Source index
 
-- [`Manage.py`](../../Manage.py) is the entry point for project commands. [`RuntimeAssets.py`](../../RuntimeAssets.py) restores the files used by the app.
-- [`Scoring.py`](../../code/shared/ielts_judge/Scoring.py) runs a scoring request. [`Prompts.py`](../../code/shared/ielts_judge/Prompts.py) and [`Scores.py`](../../code/shared/ielts_judge/Scores.py) handle what goes into the model and what comes back.
-- [`Ui.py`](../../code/shared/ielts_judge/Ui.py) builds the Gradio interface. [`Database.py`](../../code/shared/ielts_judge/Database.py) connects scoring to the reference database.
-- [`App.py` for the Space](../../code/public_demo/App.py) starts the hosted demo. [`App.py` for local use](../../code/local_backup/App.py) starts the local app.
-- [`PrepareData.py`](../../code/offline_research/PrepareData.py), [`TrainAes.py`](../../code/offline_research/TrainAes.py), [`ManageCorpus.py`](../../code/offline_research/ManageCorpus.py) and [`EvaluateModels.py`](../../code/offline_research/EvaluateModels.py) are the research entry points.
+Use this list to jump to the main files for running the app, scoring an essay or comparing models.
 
-[Project layout](../../code/README.md)
+- [`Manage.py`](../../Manage.py) is where project commands start. [`RuntimeAssets.py`](../../RuntimeAssets.py) gets the files the app needs.
+- [`Scoring.py`](../../code/shared/ielts_judge/Scoring.py) handles an essay from submission to scores. [`Prompts.py`](../../code/shared/ielts_judge/Prompts.py) builds the prompt, and [`Scores.py`](../../code/shared/ielts_judge/Scores.py) checks the reply.
+- [`Ui.py`](../../code/shared/ielts_judge/Ui.py) builds the form. [`Database.py`](../../code/shared/ielts_judge/Database.py) finds similar scored essays.
+- [Hosted app](../../code/public_demo/App.py) and [local app](../../code/local_backup/App.py) start the two versions of the interface.
+- [Research](../../code/offline_research/README.md) links to the tools for preparing data, training models and comparing scores.
