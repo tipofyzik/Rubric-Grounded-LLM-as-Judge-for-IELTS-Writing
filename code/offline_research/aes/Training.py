@@ -16,13 +16,13 @@ from ielts_judge.aes.OrdinalRegression import ENCODER_ID, ENCODER_REVISION, Ordi
 
 
 def aes_options(config: Any=None) -> Any:
-    """Aes options.
+    """Merge AES defaults and validate the positive integer options.
 
     Args:
-        config (Any): Config used by this operation.
+        config (Any): Optional mapping of supported AES setting overrides.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Full AES settings dictionary, including the pinned encoder revision.
     """
     defaults = {"encoder_name": ENCODER_ID, "encoder_revision": ENCODER_REVISION,
                 "max_length": 512, "learning_rate": 2e-5, "seed": 42,
@@ -36,15 +36,15 @@ def aes_options(config: Any=None) -> Any:
 
 
 def metrics_report(truth: Any, predictions: Any, train_labels: Any) -> Any:
-    """Baseline constants are chosen from train; test is used only for metrics.
+    """Measure AES agreement and compare it with a train-derived constant baseline.
 
     Args:
-        truth (Any): Truth used by this operation.
-        predictions (Any): Predictions used by this operation.
-        train_labels (Any): Train labels used by this operation.
+        truth (Any): Test label matrix in public criterion order.
+        predictions (Any): Prediction matrix with the same row and column order.
+        train_labels (Any): Training label matrix used to compute the floored median per criterion.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Per-criterion counts, MAE, quadratic weighted kappa and baseline MAE.
     """
     result = {}
     baseline = np.floor(np.median(train_labels, axis=0)).astype(int)
@@ -63,18 +63,21 @@ def metrics_report(truth: Any, predictions: Any, train_labels: Any) -> Any:
 
 
 def run_aes(train: Any, test: Any, experiment: Any, result_root: Any, *, config: Any=None, train_model: bool=True) -> Any:
-    """One path for PrepareData.py and the Kaggle CLI; never resplit or sample train.
+    """Fit or load an essay-only AES bundle and evaluate it on the selected essays.
+
+    Train on the supplied full split. Write ID-aligned predictions and a metrics
+    report under result_root. A fresh fit also writes the model bundle there.
 
     Args:
-        train (Any): Train used by this operation.
-        test (Any): Test used by this operation.
-        experiment (Any): Experiment used by this operation.
-        result_root (Any): Result root used by this operation.
-        config (Any): Config used by this operation.
-        train_model (bool): Train model used by this operation.
+        train (Any): Full prepared train DataFrame with essay text and criterion labels.
+        test (Any): Selected test DataFrame with essay IDs, text and criterion labels.
+        experiment (Any): Manifest identifying the dataset and train split.
+        result_root (Any): Directory for the bundle and evaluation outputs.
+        config (Any): Optional AES settings. Inference-only mode requires bundle_path.
+        train_model (bool): Fit a fresh bundle when true, otherwise load the configured one.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Report with bundle identity, row counts, timings and criterion metrics.
     """
     validate_reference_corpus(train, experiment)
     options = aes_options(config)

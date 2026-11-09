@@ -21,14 +21,11 @@ from ielts_judge.Scores import OUTPUT_SCHEMA_VERSION, parse_scores, public_score
 class ScoringError(RuntimeError):
     """Carry a public failure code and message from a scoring stage."""
     def __init__(self, code: str, message: str) -> None:
-        """Initialize this component's settings and collaborators.
+        """Attach the public failure code to an exception.
 
         Args:
-            code (str): Code used by this operation.
-            message (str): Message used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            code (str): Machine-readable reason for the scoring failure.
+            message (str): Public message suitable for the result object.
         """
         super().__init__(message)
         self.code = code
@@ -45,11 +42,7 @@ class ScoringLimits:
     max_input_chars: int = 40000
 
     def __post_init__(self) -> None:
-        """Validate configuration values before the instance is used.
-
-        Returns:
-            None: This operation returns no value.
-        """
+        """Require a positive character limit and a finite positive timeout."""
         if (
             type(self.timeout_seconds) not in (int, float)
             or not math.isfinite(self.timeout_seconds)
@@ -77,18 +70,18 @@ class ScoringService:
         limits: ScoringLimits | None=None,
         versions: dict[str, Any] | None=None
     ) -> None:
-        """Initialize this component's settings and collaborators.
+        """Assemble a scoring chain for one request at a time.
 
         Args:
-            judge (Any): Loaded judge adapter providing token counting and generation.
-            aes (Any): Loaded essay-only AES predictor or an explicitly disabled component.
-            retriever (Any): Reference adapter using the accepted corpus and embedding profile.
+            judge (Any): Adapter providing token counting and generation.
+            aes (Any): Essay-only score predictor, or None if AES is disabled.
+            retriever (Any): Reference lookup adapter, or None if retrieval is disabled.
             setup (str): Context setup selecting rubric, PANDA references and AES guidance.
-            limits (ScoringLimits | None): Validated request limits for input size and elapsed processing time.
-            versions (dict[str, Any] | None): Safe component provenance included in result metadata.
+            limits (ScoringLimits | None): Request limits, or None for defaults.
+            versions (dict[str, Any] | None): Safe component provenance copied into results.
 
-        Returns:
-            None: This operation returns no value.
+        Raises:
+            ValueError: The context setup is unknown.
         """
         if setup not in CONTEXT_SETUPS:
             raise ValueError("Unknown context setup")
@@ -103,19 +96,19 @@ class ScoringService:
         )
 
     def _prompt(self, request: dict[str, Any]) -> Any:
-        """Build the bounded judge prompt using the current request context.
+        """Build the judge prompt within the model token budget.
 
         Args:
-            request (dict[str, Any]): Request-local state owned by the synchronous scoring operation.
+            request (dict[str, Any]): Request state with the model profile and context.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: The same request with chat messages, token count and prompt metadata.
         """
         def prepare() -> Any:
-            """Assemble the current operation's validated inputs and metadata.
+            """Fit the prompt by dropping whole references from the end if needed.
 
             Returns:
-                Any: The computed result for the supplied inputs.
+                Any: The updated request with the prompt and reference usage recorded.
             """
             context = request["context"]
             references = context.references
@@ -165,13 +158,13 @@ class ScoringService:
         return request["run"]("prompt", prepare)
 
     def _generate(self, request: dict[str, Any]) -> Any:
-        """Invoke the selected judge once and verify the returned component provenance.
+        """Call the judge once and validate the response against the selected profile.
 
         Args:
-            request (dict[str, Any]): Request-local state owned by the synchronous scoring operation.
+            request (dict[str, Any]): Request state with chat messages, profile and deadline.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: The same request with the validated generation result.
         """
         request["metadata"]["judge_attempts"] = 1
         result = request["run"](
@@ -199,13 +192,13 @@ class ScoringService:
         return request
 
     def _parse(self, request: dict[str, Any]) -> Any:
-        """Validate the judge completion and attach four public integer criterion scores.
+        """Validate the judge completion and attach the four criterion scores.
 
         Args:
-            request (dict[str, Any]): Request-local state owned by the synchronous scoring operation.
+            request (dict[str, Any]): Request state containing the judge completion.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: The same request with public integer scores.
         """
         request["scores"] = request["run"](
             "parser", lambda: parse_scores(request["generation"]["raw_text"])
@@ -213,16 +206,21 @@ class ScoringService:
         return request
 
     def score(self, *, model_key: str, task_prompt: str, essay: str, essay_id: str | None=None) -> dict[str, Any]:
-        """Evaluate one Task/Essay submission and return a bounded success or failure result.
+        """Score one IELTS Writing Task 2 submission.
+
+        The service admits one request at a time. A concurrent call returns an
+        error with code service_busy.
 
         Args:
-            model_key (str): Enabled immutable judge profile key from the model registry.
-            task_prompt (str): English Task 2 question against which the essay is assessed.
-            essay (str): English essay text supplied for evaluation.
-            essay_id (str | None): Stable source essay identifier used for reference exclusion.
+            model_key (str): Enabled judge profile key from the model registry.
+            task_prompt (str): Task 2 question against which the essay is assessed.
+            essay (str): Essay text supplied for evaluation.
+            essay_id (str | None): Source ID used to exclude the essay from retrieval.
 
         Returns:
-            dict[str, Any]: Status, four validated criterion scores or an error, and safe processing metadata.
+            dict[str, Any]: On success, status ok with scores and warnings. On failure,
+                status error with an error object containing code, stage and message.
+                Both forms include run metadata and timings.
         """
         started = time.monotonic()
         stage = "validation"

@@ -12,15 +12,19 @@ from ielts_judge.Criteria import LEGACY_TO_PUBLIC, PUBLIC_CRITERION_IDS
 OUTPUT_SCHEMA_VERSION = "scores-integer-v2"
 
 
-def public_scores(value: Any, *, legacy: bool=False) -> dict[str, Any]:
-    """Normalize integer-valued scores without rounding or filling fields.
+def public_scores(value: Any, *, legacy: bool=False) -> dict[str, int]:
+    """Validate four criterion scores and normalize them to integers.
 
     Args:
-        value (Any): Value used by this operation.
-        legacy (bool): Legacy used by this operation.
+        value (Any): Dictionary with one numeric score per criterion.
+        legacy (bool): Accept legacy criterion IDs and translate them to public IDs.
 
     Returns:
-        dict[str, Any]: Named result fields and metadata produced by this operation.
+        dict[str, int]: Scores in public criterion order, each an integer from 0 to 9.
+
+    Raises:
+        ValueError: A criterion is missing, unknown or duplicated after translation,
+            or a score is outside the allowed range or not integer-valued.
     """
     if not isinstance(value, dict):
         raise ValueError("Scores must be a JSON object")
@@ -44,14 +48,17 @@ def public_scores(value: Any, *, legacy: bool=False) -> dict[str, Any]:
     return {name: result[name] for name in PUBLIC_CRITERION_IDS}
 
 
-def parse_scores(text: str) -> Any:
-    """Allow whitespace and one whole JSON fence; reject ambiguous/partial output.
+def parse_scores(text: str) -> dict[str, int]:
+    """Parse the judge reply into four IELTS criterion scores.
 
     Args:
-        text (str): Text used by this operation.
+        text (str): Judge reply containing one JSON object, optionally in a code fence.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        dict[str, int]: Scores from 0 to 9 keyed by public criterion ID.
+
+    Raises:
+        ValueError: The reply has invalid JSON, criterion IDs or scores.
     """
     if not isinstance(text, str):
         raise ValueError("Judge completion must be text")
@@ -60,13 +67,16 @@ def parse_scores(text: str) -> Any:
         text = fence[1]
 
     def unique(pairs: Any) -> Any:
-        """Unique.
+        """Collect JSON object fields, rejecting duplicate keys.
 
         Args:
-            pairs (Any): Pairs used by this operation.
+            pairs (Any): Ordered key-value pairs from the JSON decoder.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Dictionary containing the fields of one JSON object.
+
+        Raises:
+            ValueError: A key occurs more than once.
         """
         result = {}
         for key, value in pairs:
@@ -76,13 +86,13 @@ def parse_scores(text: str) -> Any:
         return result
 
     def invalid(_: Any) -> None:
-        """Invalid.
+        """Reject a nonfinite JSON number before score validation.
 
         Args:
-            _ (Any):   used by this operation.
+            _ (Any): Nonstandard literal passed by the JSON decoder.
 
-        Returns:
-            None: This operation returns no value.
+        Raises:
+            ValueError: The reply uses NaN or an infinity literal.
         """
         raise ValueError("Nonfinite JSON constant")
 

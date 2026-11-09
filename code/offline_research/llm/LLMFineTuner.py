@@ -1,3 +1,5 @@
+"""Fine-tune and evaluate a local language model for essay scoring with LoRA."""
+
 from typing import Any
 import torch
 import json

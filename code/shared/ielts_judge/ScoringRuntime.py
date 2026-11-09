@@ -16,21 +16,24 @@ from ielts_judge.Scoring import ScoringService
 def load_scoring_service(judge: Any, *, aes_release: str | Path, corpus_release: str | Path, project_root: str | Path,
                          supabase_url: str, supabase_key: str, setup: str="rubric_panda_aes", limits: Any=None,
                          cpu_worker: Any=None) -> ScoringService:
-    """Load once on CPU, preserving the trained AES and pinned embedding profile.
-    
+    """Assemble the scoring service with the CPU components required by its setup.
+
     Args:
         judge (Any): Loaded judge adapter providing token counting and generation.
-        aes_release (str | Path): Aes release used by this operation.
-        corpus_release (str | Path): Corpus release used by this operation.
-        project_root (str | Path): Selected source checkout used for configuration and artifacts.
-        supabase_url (str): Supabase url used by this operation.
-        supabase_key (str): Supabase key used by this operation.
+        aes_release (str | Path): Path to the AES descriptor, used when AES is enabled.
+        corpus_release (str | Path): Path to the PANDA descriptor, used for retrieval.
+        project_root (str | Path): Checkout root for paths in the PANDA descriptor.
+        supabase_url (str): Supabase project origin, required for retrieval.
+        supabase_key (str): API key authorized to search PANDA, required for retrieval.
         setup (str): Context setup selecting rubric, PANDA references and AES guidance.
-        limits (Any): Validated request limits for input size and elapsed processing time.
-        cpu_worker (Any): Cpu worker used by this operation.
-    
+        limits (Any): ScoringLimits, or None to use the service defaults.
+        cpu_worker (Any): Optional worker that loads and owns CPU models in a child process.
+
     Returns:
-        ScoringService: The computed result for the supplied inputs.
+        ScoringService: Ready service with the selected adapters and release metadata.
+
+    Raises:
+        ValueError: The setup, release or runtime settings are incompatible.
     """
     if setup not in CONTEXT_SETUPS:
         raise ValueError("Unknown context setup")

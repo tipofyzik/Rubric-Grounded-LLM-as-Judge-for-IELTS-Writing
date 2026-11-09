@@ -13,13 +13,13 @@ sys.path[:0]=[str(ROOT/'code'),str(ROOT/'code/shared')]
 
 
 def build(output: Any) -> Any:
-    """Build.
+    """Package the prepared dataset and code with a matching AES notebook.
 
     Args:
-        output (Any): Output used by this operation.
+        output (Any): Parent directory for the new bundle release.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Release directory with the runtime ZIP, notebook and inventory.
     """
     from ielts_judge.data.Preparation import load_prepared, file_hash
     from ielts_judge.Paths import PATHS

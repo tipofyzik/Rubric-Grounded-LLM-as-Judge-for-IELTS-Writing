@@ -1,4 +1,6 @@
 -- Run once in the Supabase SQL Editor. Only PANDA-owned objects are created.
+-- Import with service_role: register the manifest, upload record batches,
+-- then finalize the verified release before serving search requests.
 begin;
 create schema if not exists extensions;
 create extension if not exists vector with schema extensions;
@@ -69,6 +71,7 @@ revoke all on ielts.corpus_releases, ielts.reference_essays, ielts.reference_cri
 grant select on ielts.corpus_releases, ielts.reference_essays, ielts.reference_criteria, ielts.rubric_passages to anon, authenticated;
 grant all on ielts.corpus_releases, ielts.reference_essays, ielts.reference_criteria, ielts.rubric_passages to service_role;
 
+-- Register the corpus manifest and rubric. Return corpus_id and release state.
 create or replace function public.panda_begin(p_manifest jsonb) returns jsonb
 language plpgsql security invoker set search_path = pg_catalog, extensions as $$
 declare c ielts.corpus_releases; m jsonb := p_manifest; k text; item jsonb;
@@ -100,6 +103,8 @@ begin
   return jsonb_build_object('corpus_id',c.corpus_id,'state',c.state);
 end $$;
 
+-- Import 1-100 serialized record lines and return the acknowledged count.
+-- Identical records can be replayed. Conflicting records are rejected.
 create or replace function public.panda_import(p_corpus_id text, p_records jsonb) returns jsonb
 language plpgsql security invoker set search_path = pg_catalog, extensions as $$
 declare c ielts.corpus_releases; raw text; r jsonb; h text; old_hash text; k text; item jsonb;
@@ -145,6 +150,7 @@ begin
   return jsonb_build_object('count',jsonb_array_length(p_records));
 end $$;
 
+-- Verify the imported count and record digest, then mark the release ready.
 create or replace function public.panda_finalize(p_corpus_id text) returns jsonb
 language plpgsql security invoker set search_path = pg_catalog, extensions as $$
 declare c ielts.corpus_releases; n bigint; criteria_count bigint; actual_digest text;
@@ -161,6 +167,9 @@ begin
   return jsonb_build_object('corpus_id',p_corpus_id,'state','ready','count',n,'records_digest',actual_digest);
 end $$;
 
+-- Search a ready corpus using a normalized 768-dimensional query embedding.
+-- Anon and authenticated callers can read ready releases. A missing ready
+-- release raises an error. No eligible matches yields an empty references array.
 create or replace function public.panda_match(
   p_corpus_id text, p_embedding_profile_sha256 text, p_query_embedding jsonb,
   p_query_hash text, p_query_id text default null, p_match_count integer default 3, p_threshold real default null

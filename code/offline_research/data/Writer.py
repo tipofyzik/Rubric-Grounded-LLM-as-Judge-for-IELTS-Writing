@@ -18,14 +18,19 @@ from ielts_judge.Criteria import CRITERION_IDS, IELTS_CRITERIA, LEGACY_TO_PUBLIC
 from ielts_judge.data.Preparation import COLUMN_TYPES, LOGGER, SCHEMA_VERSION, SCORE_FIELDS, SPLITS, file_hash, validate_splits
 
 def validate_output(output: Any, paths: Any) -> Any:
-    """Validate output.
+    """Check the raw source paths and keep release writes outside their directories.
 
     Args:
-        output (Any): Output used by this operation.
-        paths (Any): Paths used by this operation.
+        output (Any): Proposed release directory.
+        paths (Any): Raw file paths grouped by source and split.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Resolved Path for the release directory.
+
+    Raises:
+        FileNotFoundError: A raw source file is missing.
+        NotADirectoryError: The output path names an existing file.
+        ValueError: The output overlaps a raw source directory.
     """
     output = Path(output).resolve()
     if output.exists() and not output.is_dir():
@@ -41,17 +46,20 @@ def validate_output(output: Any, paths: Any) -> Any:
 
 
 def save_prepared(prepared: Any, output: Any, paths: Any, *, selection: Any=None, save_intermediate_datasets: bool=False) -> Any:
-    """Manifest is written last; a failed rebuild cannot expose a stale release.
+    """Write the selected splits and publish their manifest last.
+
+    When rebuilding, invalidate the existing manifest before replacing files
+    so a failed write cannot leave an old manifest attached to new content.
 
     Args:
-        prepared (Any): Prepared used by this operation.
-        output (Any): Output used by this operation.
-        paths (Any): Paths used by this operation.
-        selection (Any): Selection used by this operation.
-        save_intermediate_datasets (bool): Save intermediate datasets used by this operation.
+        prepared (Any): PreparedDataset with cleaned rows and source provenance.
+        output (Any): Directory for the prepared release.
+        paths (Any): Raw source paths grouped by source and split.
+        selection (Any): Optional score-profile and row selection settings.
+        save_intermediate_datasets (bool): Also save extracted, excluded and unselected rows.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Resolved Path to the prepared release.
     """
     import pyarrow as pa
     import pyarrow.parquet as pq

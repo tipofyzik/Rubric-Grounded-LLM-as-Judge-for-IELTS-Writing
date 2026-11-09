@@ -196,18 +196,22 @@ def report_tables(frame: Any, truth: Any, plan: Any) -> dict[str, Any]:
 
 
 def write_report(records: Any, truth: Any, plan: Any, output: Any, options: Any=None, *, model_loads: Any=()) -> Any:
-    """Write report.
+    """Write tables, selected plots and provenance for one evaluation report.
 
     Args:
-        records (Any): Records used by this operation.
-        truth (Any): Truth used by this operation.
-        plan (Any): Plan used by this operation.
-        output (Any): Output used by this operation.
-        options (Any): Options used by this operation.
-        model_loads (Any): Model loads used by this operation.
+        records (Any): Prediction records for planned model jobs and the AES baseline.
+        truth (Any): Reference labels with one row per essay ID.
+        plan (Any): Evaluation plan with the essays, models, setups and repeats.
+        output (Any): New report directory. It must not already exist.
+        options (Any): Plot selections and report settings, or None for defaults.
+        model_loads (Any): Optional records of model startup time and resource use.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Path to the report directory.
+
+    Raises:
+        FileExistsError: The output directory already exists.
+        ValueError: Report options, reference labels or predictions are inconsistent.
     """
     options = report_options(options)
     truth = reference_frame(truth)

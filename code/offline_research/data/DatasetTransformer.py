@@ -7,30 +7,30 @@ from ielts_judge.Criteria import CRITERION_IDS, IELTS_CRITERIA, LEGACY_TO_PUBLIC
 
 
 class DatasetTransformer:
-    """Manage dataset transformer through the operations defined by this component."""
+    """Prepare source datasets and read or write verified split releases."""
     def __init__(self, datasets_paths: Any, selection: Any=None, *, save_intermediate_datasets: bool=False) -> None:
-        """Initialize this component's settings and collaborators.
+        """Configure dataset input paths and release selection.
 
         Args:
-            datasets_paths (Any): Datasets paths used by this operation.
-            selection (Any): Selection used by this operation.
-            save_intermediate_datasets (bool): Save intermediate datasets used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            datasets_paths (Any): Dataset path mapping with source_root and prepared locations.
+            selection (Any): Optional policy for filtering score profiles and selecting rows.
+            save_intermediate_datasets (bool): Include extracted and excluded rows in new releases.
         """
         self.datasets_paths = datasets_paths
         self.selection = selection
         self.save_intermediate_datasets = save_intermediate_datasets
 
     def prepare(self, *, limit_per_split: Any=None) -> Any:
-        """Assemble the current operation's validated inputs and metadata.
+        """Extract the source rows and resolve duplicates in memory.
 
         Args:
-            limit_per_split (Any): Limit per split used by this operation.
+            limit_per_split (Any): Optional row cap per raw file for a partial test release.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: PreparedDataset with cleaned rows, source metadata and extracted rows.
+
+        Raises:
+            FileNotFoundError: A required source file is missing.
         """
         from ielts_judge.data.Preparation import PreparedDataset, extract_sources, resolve_duplicates, source_paths
         paths = source_paths(self.datasets_paths["source_root"])
@@ -43,14 +43,14 @@ class DatasetTransformer:
 
 
     def save_processed(self, prepared: Any, output: Any) -> Any:
-        """Save processed.
+        """Write or rebuild a prepared release with the configured selection policy.
 
         Args:
-            prepared (Any): Prepared used by this operation.
-            output (Any): Output used by this operation.
+            prepared (Any): PreparedDataset produced by prepare or prepare_from_extracted.
+            output (Any): Release directory. A rebuild replaces the published split files.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Path to the release directory.
         """
         from ielts_judge.data.Preparation import source_paths
         from offline_research.data.Writer import save_prepared
@@ -58,14 +58,14 @@ class DatasetTransformer:
                              selection=self.selection, save_intermediate_datasets=self.save_intermediate_datasets)
 
     def prepare_from_extracted(self, release: Any, *, allow_partial: bool=False) -> Any:
-        """Reapply duplicate/cleanup rules to verified extracted rows, without regex parsing.
+        """Reapply cleanup to the saved extracted rows of a verified release.
 
         Args:
-            release (Any): Release used by this operation.
-            allow_partial (bool): Allow partial used by this operation.
+            release (Any): Release directory containing both extracted source Parquet files.
+            allow_partial (bool): Accept a release that declares partial source input.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: PreparedDataset with cleaned rows and the parent manifest identity.
         """
         from pathlib import Path
         from ielts_judge.data.Preparation import PreparedDataset, file_hash, resolve_duplicates
@@ -78,14 +78,14 @@ class DatasetTransformer:
 
 
     def prepare_and_save(self, output: Any, *, limit_per_split: Any=None) -> Any:
-        """Prepare and save.
+        """Extract and clean source rows, then write a prepared dataset release.
 
         Args:
-            output (Any): Output used by this operation.
-            limit_per_split (Any): Limit per split used by this operation.
+            output (Any): Release directory outside the raw source inputs.
+            limit_per_split (Any): Optional row cap per raw file for a partial test release.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Path to the written release.
         """
         from ielts_judge.data.Preparation import source_paths
         from offline_research.data.Writer import validate_output
@@ -95,32 +95,32 @@ class DatasetTransformer:
 
     @staticmethod
     def load_processed(output: Any, source: str="combined", *, allow_partial: bool=False) -> Any:
-        """Load processed.
+        """Read a prepared release through the shared dataset validator.
 
         Args:
-            output (Any): Output used by this operation.
-            source (str): Source used by this operation.
-            allow_partial (bool): Allow partial used by this operation.
+            output (Any): Existing release directory containing the manifest and splits.
+            source (str): Keep both sources (combined), or filter to chillies or writing9.
+            allow_partial (bool): Allow a release that declares partial source input.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: (train DataFrame, test DataFrame, manifest dict).
         """
         from ielts_judge.data.Preparation import load_prepared
         return load_prepared(output, source, allow_partial=allow_partial)
 
 
     def extract_score(self,text: str, criterion: str, next_criterion: str | None = None) -> float|None:
-        """Extracts the score for a given criterion from the evaluation text.
+        """Read one criterion score from a Chillies evaluation response.
 
         Args:
-            text (str): Text used by this operation.
-            criterion (str): Criterion used by this operation.
-            next_criterion (str | None): Next criterion used by this operation.
+            text (str): Original evaluation response.
+            criterion (str): Case-sensitive criterion heading.
+            next_criterion (str | None): Next heading, used to bound the search when present.
 
         Returns:
-            float | None: The computed result for the supplied inputs.
+            float | None: First parsed score from the criterion line or a Score line,
+                or None if no score is found.
         """
-        # Define the regex pattern to extract the block of text for the given criterion
         if next_criterion:
             pattern_block = rf"({re.escape(criterion)}.*?)(?={re.escape(next_criterion)})"
         else:
@@ -134,21 +134,15 @@ class DatasetTransformer:
                 return None
         block_text = match_block.group(1)
 
-        # First, try to find a line that contains the criterion name
-        # Do not add re.IGNORECASE flag to the regex pattern, because it will cause problems
-        # in cases when criterion additionally mentioned in the evaluation itself.
+        # Match the source heading's case so mentions in the prose do not win.
         match_criterion_line = re.search(rf"^.*{re.escape(criterion)}.*$", block_text, flags=re.MULTILINE)
         if match_criterion_line:
-            # In case if the overall band goes first but not the last, we start
-            # from the criterion line and search tll the end of the block, not the next criterion line
-            # It fixes the problem of not getting the score for the last criterion when the overall band goes first.
             line = match_criterion_line.group(0)
             match_number = re.search(r"\b(\d+(?:\.\d+)?)\b", line)
             if match_number:
                 return float(match_number.group(1))
 
-        # If no line contains the criterion name, try to find lines that contain the word "score"
-        # Same warning about re.IGNORECASE flag as above!
+        # Some responses put the score on a separate, capitalized Score line.
         score_lines = re.findall(r"^.*Score.*$", block_text, flags=re.MULTILINE)
         if score_lines:
             for line in score_lines:
@@ -160,10 +154,10 @@ class DatasetTransformer:
 
 
     def load_hugging_face_datasets(self) -> Any:
-        """Read original CSVs with source split/row provenance; never read a cache.
+        """Read local Chillies source CSVs and attach row provenance.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: DataFrame with original CSV columns plus source_split and source_line.
         """
         from ielts_judge.data.Preparation import source_paths
         files = source_paths(self.datasets_paths['source_root'])['chillies']
@@ -176,10 +170,10 @@ class DatasetTransformer:
         return pd.concat(frames, ignore_index=True)
 
     def transform_hugging_face_dataset(self) -> Any:
-        """Re-extract old evaluations without rewriting source CSVs or requiring Writing9.
+        """Extract labels and text from the local Chillies sources.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: DataFrame of extracted Chillies rows before cross-source deduplication.
         """
         from ielts_judge.data.Preparation import extract_sources, source_paths
         paths = source_paths(self.datasets_paths['source_root'])
@@ -187,10 +181,10 @@ class DatasetTransformer:
         return extracted['chillies']
 
     def load_transformed_hugging_face_dataset(self) -> Any:
-        """Compatibility view of accepted Chillies Parquet rows, with legacy names.
+        """Read both prepared Chillies splits through the legacy column view.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Combined DataFrame with legacy criterion, prompt and band column names.
         """
         train, test, _ = self.load_processed(self.datasets_paths['prepared'], 'chillies')
         mapping = {current_value:current_key for current_key,current_value in LEGACY_TO_PUBLIC.items()}
@@ -198,12 +192,12 @@ class DatasetTransformer:
         return pd.concat([train, test], ignore_index=True).rename(columns=mapping)
 
     def fill_missing_scores(self, dataset: Any) -> Any:
-        """Missing labels remain unknown; overall is never an imputation source.
+        """Keep missing scores unchanged for legacy callers.
 
         Args:
-            dataset (Any): Dataset used by this operation.
+            dataset (Any): Dataset whose original labels are kept.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: The input object unchanged.
         """
         return dataset

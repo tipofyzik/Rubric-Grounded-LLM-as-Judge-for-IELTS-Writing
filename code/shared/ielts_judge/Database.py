@@ -18,10 +18,13 @@ from ielts_judge.Paths import PROJECT_ROOT
 
 
 def retrieval_k() -> Any:
-    """Read the shared inference setting at call time, without loading models.
+    """Read and validate the configured default reference count.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Integer reference count from 1 to 20.
+
+    Raises:
+        ValueError: The configured count is outside the allowed range.
     """
     config = yaml.safe_load((PROJECT_ROOT / "code/shared/config.yaml").read_text(encoding="utf-8"))
     value = config["retrieval"]["k"]
@@ -34,15 +37,12 @@ class RetrievalError(RuntimeError):
     """RPC transport, permissions, release or response failure; never an empty retrieval."""
 
     def __init__(self, message: str, code: str="retrieval_failure", *, diagnostics: Any=None) -> None:
-        """Initialize this component's settings and collaborators.
+        """Keep the public error code and retain only safe diagnostic fields.
 
         Args:
-            message (str): Message used by this operation.
-            code (str): Code used by this operation.
-            diagnostics (Any): Diagnostics used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            message (str): Human-readable failure summary.
+            code (str): Machine-readable retrieval failure code.
+            diagnostics (Any): Optional mapping containing HTTP status, attempt count or database code.
         """
         super().__init__(message)
         self.code = code
@@ -63,17 +63,14 @@ class EncodingError(RuntimeError):
 
 
 class SupabaseRPC:
-    """Manage supabase rpc through the operations defined by this component."""
+    """Call the PANDA Supabase functions over HTTP with a shared request budget."""
     def __init__(self, url: Any, key: Any, *, timeout: float | None=30) -> None:
-        """Initialize this component's settings and collaborators.
+        """Configure transport for one Supabase project.
 
         Args:
-            url (Any): Url used by this operation.
-            key (Any): Key used by this operation.
-            timeout (float | None): Timeout used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            url (Any): HTTPS project origin. HTTP is allowed for loopback tests.
+            key (Any): API key authorized to call the required PANDA functions.
+            timeout (float | None): Positive default time budget in seconds. None is invalid.
         """
         parsed = urlsplit(url)
         if (parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "localhost"))) or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
@@ -85,15 +82,22 @@ class SupabaseRPC:
         self.url, self.key, self.timeout = url.rstrip("/"), key, timeout
 
     def call(self, function: Any, parameters: Any, *, timeout: float | None=None) -> Any:
-        """Call.
+        """Send a PANDA RPC request and decode its JSON response.
+
+        Only panda_match can retry once after a completed transient HTTP failure.
+        Both attempts share one budget. Import calls are sent once.
 
         Args:
-            function (Any): Function used by this operation.
-            parameters (Any): Parameters used by this operation.
-            timeout (float | None): Timeout used by this operation.
+            function (Any): One of panda_begin, panda_import, panda_finalize or panda_match.
+            parameters (Any): JSON-serializable object using the SQL argument names.
+            timeout (float | None): Optional budget in seconds, capped by the transport default.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Decoded JSON body of the successful response.
+
+        Raises:
+            ValueError: The function or timeout is invalid.
+            RetrievalError: The request fails or returns invalid JSON.
         """
         if function not in ("panda_begin", "panda_import", "panda_finalize", "panda_match"):
             raise ValueError("Unknown PANDA RPC function")
@@ -152,15 +156,21 @@ class SupabaseRPC:
 
 
 def import_corpus(corpus: Any, rpc: Any, *, batch_size: int=50) -> Any:
-    """The database owns transactional batches, immutable rows and readiness; reruns are idempotent.
+    """Register a corpus, upload its records and finalize it for search.
+
+    The database verifies each batch and keeps imported rows immutable.
+    Rerunning the same import is safe.
 
     Args:
-        corpus (Any): Corpus used by this operation.
-        rpc (Any): Rpc used by this operation.
-        batch_size (int): Batch size used by this operation.
+        corpus (Any): Verified Corpus or path to the local corpus directory.
+        rpc (Any): PANDA transport authorized to call the import functions.
+        batch_size (int): Number of records per batch, from 1 to 100.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Verified readiness object with corpus_id, state, count and records_digest.
+
+    Raises:
+        RetrievalError: Registration, import or final verification fails.
     """
     if not isinstance(corpus, Corpus):
         corpus = Corpus(corpus)
@@ -190,15 +200,15 @@ def import_corpus(corpus: Any, rpc: Any, *, batch_size: int=50) -> Any:
 
 
 def _import_batch(rpc: Any, corpus_id: Any, batch: Any) -> None:
-    """Import batch.
+    """Upload one batch and require acknowledgment for every record.
 
     Args:
-        rpc (Any): Rpc used by this operation.
-        corpus_id (Any): Corpus id used by this operation.
-        batch (Any): Batch used by this operation.
+        rpc (Any): PANDA transport authorized to call panda_import.
+        corpus_id (Any): ID returned by corpus registration.
+        batch (Any): List of serialized PANDA record lines.
 
-    Returns:
-        None: This operation returns no value.
+    Raises:
+        RetrievalError: The RPC fails or acknowledges a different record count.
     """
     result = rpc.call("panda_import", {"p_corpus_id": corpus_id, "p_records": batch})
     if result != {"count": len(batch)}:
@@ -209,15 +219,15 @@ class ReferenceRetriever:
     """Does not log or persist submissions; references expose only source dataset labels."""
 
     def __init__(self, rpc: Any, manifest: Any, encoder: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Bind a corpus release to a matching query encoder and read transport.
 
         Args:
-            rpc (Any): Rpc used by this operation.
-            manifest (Any): Manifest used by this operation.
-            encoder (Any): Encoder used by this operation.
+            rpc (Any): Transport authorized to call panda_match.
+            manifest (Any): Verified PANDA corpus manifest containing the ID and encoder profile.
+            encoder (Any): Query encoder with the same profile as the corpus.
 
-        Returns:
-            None: This operation returns no value.
+        Raises:
+            ValueError: The release and encoder profiles differ.
         """
         digest(manifest["corpus_id"], "corpus_id")
         if manifest["embedding_profile_sha256"] != sha256(canonical(manifest["embedding"])) or encoder.profile != manifest["embedding"]:
@@ -225,17 +235,25 @@ class ReferenceRetriever:
         self.rpc, self.manifest, self.encoder = rpc, manifest, encoder
 
     def retrieve(self, essay: str, *, essay_id: str | None=None, reference_count: int | None=None, threshold: Any=None, timeout: float | None=None) -> dict[str, Any]:
-        """Encode the query essay and retrieve compatible training references with ID/hash exclusion.
+        """Encode the essay and look up training references by cosine similarity.
 
         Args:
-            essay (str): English essay text supplied for evaluation.
-            essay_id (str | None): Stable source essay identifier used for reference exclusion.
-            reference_count (int | None): Maximum number of compatible training references to return.
-            threshold (Any): Threshold used by this operation.
-            timeout (float | None): Timeout used by this operation.
+            essay (str): Nonempty query essay. Its content excludes identical references.
+            essay_id (str | None): Optional source ID to exclude as well.
+            reference_count (int | None): Maximum number of references, from 1 to 20.
+                Defaults to the shared retrieval setting.
+            threshold (Any): Minimum cosine similarity from -1 to 1, or None for no cutoff.
+            timeout (float | None): Budget in seconds. Encoding time is deducted before
+                the RPC call. The encoder is synchronous and is not interrupted.
 
         Returns:
-            dict[str, Any]: Named result fields and metadata produced by this operation.
+            dict[str, Any]: Status ok or retrieval_empty, a tuple of ReferenceContext
+                objects, aligned similarities, corpus ID, token counts and timings.
+
+        Raises:
+            ValueError: The query, reference count or threshold is invalid.
+            EncodingError: The query could not be encoded.
+            RetrievalError: The RPC fails or returns invalid references.
         """
         if reference_count is None:
             reference_count = retrieval_k()

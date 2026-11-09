@@ -19,11 +19,7 @@ os.environ["DO_NOT_TRACK"] = "1"
 def main() -> None:
     # A spawned CPU process imports this module without initializing ZeroGPU.
     # spaces must patch torch before model libraries are imported in the parent.
-    """Restore pinned runtime inputs and launch the autonomous ZeroGPU scoring interface.
-
-    Returns:
-        None: This operation returns no value.
-    """
+    """Restore pinned artifacts and launch the Space with CPU and GPU workers."""
     import spaces
     import gradio as gr
     import torch
@@ -46,13 +42,13 @@ def main() -> None:
 
     @spaces.GPU(duration=20)
     def generate(payload: Any) -> Any:
-        """Generate.
+        """Validate and run one judge request inside a ZeroGPU allocation.
 
         Args:
-            payload (Any): Payload used by this operation.
+            payload (Any): Judge request containing model_key, messages and max_seconds.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Raw generation result with GPU elapsed time and peak memory measurements.
         """
         deadline = validate_payload(payload, judge.profile.key)
         torch.cuda.synchronize()

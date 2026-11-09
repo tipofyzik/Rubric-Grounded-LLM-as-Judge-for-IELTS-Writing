@@ -12,13 +12,14 @@ from ielts_judge.data.Experiment import validate_reference_corpus
 from offline_research.panda.Contracts import PROMPT_VERSIONS, load_result, parse_insights, result_path, row_input, run_manifest
 
 def pilot_order(train: Any) -> Any:
-    """Cover source/score profiles first, then fill by stable ID hash; always retain full membership.
+    """Order training rows for incremental generation across source and score profiles.
 
     Args:
-        train (Any): Train used by this operation.
+        train (Any): Training DataFrame with source, criterion scores, essay text and ID.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: List of row dictionaries, with one representative per profile first
+            and the remaining rows ordered by stable essay ID digest.
     """
     groups = {}
     for row in train.to_dict("records"):
@@ -33,20 +34,28 @@ def pilot_order(train: Any) -> Any:
 
 
 def run_insights(train: Any, experiment: Any, output: Any, profile: Any, generate_batch: Any, *, limit: Any=None, retry_failed: bool=False, essay_ids: Any=None) -> Any:
-    """Single writer. A batch returns one completion or ValueError per input, in order.
+    """Generate and save PANDA completions with one writer per output directory.
+
+    An existing directory resumes only when the manifest matches. Previously
+    accepted responses are reused. Failed responses can be retried explicitly.
 
     Args:
-        train (Any): Train used by this operation.
-        experiment (Any): Experiment used by this operation.
-        output (Any): Output used by this operation.
-        profile (Any): Profile used by this operation.
-        generate_batch (Any): Generate batch used by this operation.
-        limit (Any): Limit used by this operation.
-        retry_failed (bool): Retry failed used by this operation.
-        essay_ids (Any): Essay ids used by this operation.
+        train (Any): Complete reference train DataFrame.
+        experiment (Any): Manifest identifying the reference train split.
+        output (Any): Generation directory for the manifest, responses and report.
+        profile (Any): Pinned generation settings, including batch size.
+        generate_batch (Any): Callable returning one (completion, diagnostics)
+            pair or ValueError per input record, in input order.
+        limit (Any): Positive cap on new attempts this invocation, or None.
+        retry_failed (bool): Include previously failed records in the pending work.
+        essay_ids (Any): Optional nonempty sequence of unique train IDs, in run order.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Generation report with accepted, failed, pending and newly attempted counts.
+
+    Raises:
+        ValueError: The selection or existing run is incompatible, or batch results
+            do not align with the inputs.
     """
     if limit is not None:
         positive_int(limit, "limit")
@@ -124,26 +133,26 @@ class HFInsightGenerator:
     """Loads pinned weights only on the first missing essay; generate never truncates the prompt."""
 
     def __init__(self, profile: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Store the generation profile for lazy model loading.
 
         Args:
-            profile (Any): Profile used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            profile (Any): Pinned model, prompt and decoding configuration.
         """
         self.profile = profile
         self.runtime = None
 
     def __call__(self, record: Any, *, prompt_variant: Any=None) -> Any:
-        """Call.
+        """Generate a completion for a single PANDA input.
 
         Args:
-            record (Any): Record used by this operation.
-            prompt_variant (Any): Prompt variant used by this operation.
+            record (Any): Generation input with essay ID, text, task prompt and source scores.
+            prompt_variant (Any): Optional prompt variant name overriding the profile.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: (Completion text, generation diagnostics).
+
+        Raises:
+            ValueError: The prompt variant or input is invalid.
         """
         result = self.generate_batch([record], prompt_variant=prompt_variant)[0]
         if isinstance(result, ValueError):
@@ -151,14 +160,16 @@ class HFInsightGenerator:
         return result
 
     def generate_batch(self, records: Any, *, prompt_variant: Any=None) -> list[Any]:
-        """Left-pad valid inputs together; retain individual budget failures and EOS lengths.
+        """Generate completions for valid inputs in one padded CUDA batch.
 
         Args:
-            records (Any): Records used by this operation.
-            prompt_variant (Any): Prompt variant used by this operation.
+            records (Any): Ordered generation inputs with essay ID, text, task prompt
+                and source scores.
+            prompt_variant (Any): Optional prompt variant name overriding the profile.
 
         Returns:
-            list[Any]: The computed result for the supplied inputs.
+            list[Any]: One (completion, diagnostics) pair or ValueError per input,
+                in input order. Diagnostics include token lengths and EOS or length stop.
         """
         import torch
         from transformers import set_seed

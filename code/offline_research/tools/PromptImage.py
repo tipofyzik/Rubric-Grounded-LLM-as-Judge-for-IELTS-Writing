@@ -1,3 +1,5 @@
+"""Render the scoring prompt and AES architecture as report figures."""
+
 from typing import Any
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path

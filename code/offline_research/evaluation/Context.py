@@ -15,14 +15,17 @@ from ielts_judge.Prompts import ReferenceContext
 
 
 def asset_paths(root: Any, config: Any) -> dict[str, Any]:
-    """Asset paths.
+    """Resolve evaluation assets inside the checkout and verify their release descriptors.
 
     Args:
-        root (Any): Project root used to resolve relative configuration paths.
-        config (Any): Config used by this operation.
+        root (Any): Project root used to resolve paths in the evaluation configuration.
+        config (Any): Evaluation config whose inputs select the dataset, AES and PANDA releases.
 
     Returns:
-        dict[str, Any]: Named result fields and metadata produced by this operation.
+        dict[str, Any]: Absolute directory paths keyed by dataset, aes and corpus.
+
+    Raises:
+        ValueError: An asset path escapes the checkout or a release does not match.
     """
     root = Path(root).resolve()
     aes_release_path = root / config["inputs"]["aes_release"]
@@ -44,18 +47,19 @@ def asset_paths(root: Any, config: Any) -> dict[str, Any]:
 
 
 def nearest_references(matrix: Any, records: Any, query_vector: Any, *, essay_id: str | None, essay_hash: Any, reference_count: int) -> Any:
-    """Nearest references.
+    """Rank eligible PANDA records by cosine similarity.
 
     Args:
-        matrix (Any): Matrix used by this operation.
-        records (Any): Records used by this operation.
-        query_vector (Any): Query vector used by this operation.
-        essay_id (str | None): Stable source essay identifier used for reference exclusion.
-        essay_hash (Any): Essay hash used by this operation.
-        reference_count (int): Maximum number of compatible training references to return.
+        matrix (Any): Matrix of reference embeddings in record order.
+        records (Any): Corpus records aligned row-for-row with the embedding matrix.
+        query_vector (Any): Query embedding in the same vector space.
+        essay_id (str | None): Source ID to exclude.
+        essay_hash (Any): Query content fingerprint used to exclude identical essays.
+        reference_count (int): Maximum number of references to return.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (ReferenceContext dictionaries, aligned similarity scores), both lists
+            in descending similarity order with essay ID as the tie breaker.
     """
     from ielts_judge.panda.Corpus import vector
     query_vector = vector(query_vector)
@@ -73,18 +77,23 @@ def nearest_references(matrix: Any, records: Any, query_vector: Any, *, essay_id
 
 
 def prepare_contexts(paths: Any, frame: Any, experiment: Any, *, device: str="cpu", batch_size: int=8, reference_count: int=1) -> Any:
-    """Prepare contexts.
+    """Precompute AES scores and offline PANDA references for the selected evaluation essays.
 
     Args:
-        paths (Any): Paths used by this operation.
-        frame (Any): Frame used by this operation.
-        experiment (Any): Experiment used by this operation.
-        device (str): Device used by this operation.
-        batch_size (int): Batch size used by this operation.
-        reference_count (int): Maximum number of compatible training references to return.
+        paths (Any): Verified AES and PANDA directories from asset_paths.
+        frame (Any): Evaluation DataFrame with essay_id, essay_hash and essay columns.
+        experiment (Any): Experiment manifest identifying the prepared dataset and train split.
+        device (str): Device on which to load the AES model and query encoder.
+        batch_size (int): Number of essays per AES prediction batch.
+        reference_count (int): Maximum number of training references per essay.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (context records, timing summary). Records follow the input row order.
+            Timings cover batch preparation across the entire selection.
+
+    Raises:
+        ValueError: Asset provenance differs from the experiment or a test essay
+            overlaps with the reference corpus.
     """
     from ielts_judge.aes.OrdinalRegression import OrdinalRegression, token_lengths
     from ielts_judge.panda.Corpus import Corpus, Encoder
@@ -152,26 +161,26 @@ def prepare_contexts(paths: Any, frame: Any, experiment: Any, *, device: str="cp
 
 
 class PreparedAES:
-    """Manage prepared aes through the operations defined by this component."""
+    """Serve saved AES scores for one evaluation essay."""
     def __init__(self, context: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Bind the adapter to one prepared context record.
 
         Args:
-            context (Any): Context used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            context (Any): Record with essay_hash and the saved aes result.
         """
         self.context = context
 
     def predict_essay(self, essay: str) -> Any:
-        """Return essay-only AES estimates with the model's input-length metadata.
+        """Return the saved AES result for the essay bound to this adapter.
 
         Args:
-            essay (str): English essay text supplied for evaluation.
+            essay (str): Essay text whose content fingerprint must match the saved record.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Saved scores and model input-length metadata.
+
+        Raises:
+            ValueError: The text belongs to a different essay.
         """
         if text_hash(essay) != self.context["essay_hash"]:
             raise ValueError("Prepared AES context belongs to another essay")
@@ -179,28 +188,29 @@ class PreparedAES:
 
 
 class PreparedRetriever:
-    """Manage prepared retriever through the operations defined by this component."""
+    """Serve saved PANDA references through the scoring service's lookup interface."""
     def __init__(self, context: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Bind the adapter to one prepared context record.
 
         Args:
-            context (Any): Context used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            context (Any): Record with essay ID, content fingerprint, references and retrieval metadata.
         """
         self.context = context
 
     def retrieve(self, essay: str, *, essay_id: str | None=None, timeout: float | None=None) -> dict[str, Any]:
-        """Encode the query essay and retrieve compatible training references with ID/hash exclusion.
+        """Return saved PANDA references for this essay without running a new search.
 
         Args:
-            essay (str): English essay text supplied for evaluation.
-            essay_id (str | None): Stable source essay identifier used for reference exclusion.
-            timeout (float | None): Timeout used by this operation.
+            essay (str): Essay text whose content fingerprint must match the saved record.
+            essay_id (str | None): Source ID, which must equal the saved ID.
+            timeout (float | None): Accepted for interface compatibility and ignored.
 
         Returns:
-            dict[str, Any]: Named result fields and metadata produced by this operation.
+            dict[str, Any]: Saved retrieval status and metadata with references converted
+                to a tuple of ReferenceContext objects.
+
+        Raises:
+            ValueError: The text or ID does not match the prepared context.
         """
         if text_hash(essay) != self.context["essay_hash"] or essay_id != self.context["essay_id"]:
             raise ValueError("Prepared references belong to another essay")

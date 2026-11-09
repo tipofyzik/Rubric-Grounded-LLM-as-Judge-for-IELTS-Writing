@@ -7,28 +7,31 @@ from pathlib import Path
 class LauncherError(RuntimeError):
     """Report launcher failures to the caller."""
     def __init__(self, code: str, message: str) -> None:
-        """Initialize this component's settings and collaborators.
+        """Keep the machine-readable launcher code with its message.
 
         Args:
-            code (str): Code used by this operation.
-            message (str): Message used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            code (str): Public error identifier used by CLI and UI callers.
+            message (str): Explanation suitable for showing to the operator.
         """
         super().__init__(message)
         self.code = code
 
 
 def read_access(setup: str, *, root: Any) -> Any:
-    """Read the runtime settings whitelist with process values taking precedence.
+    """Load the runtime settings whitelist from .env and the process environment.
+
+    Nonempty process values take precedence over file values. HF_TOKEN is
+    required. Retrieval setups also require Supabase URL and publishable key.
 
     Args:
-        setup (str): Context setup selecting rubric, PANDA references and AES guidance.
-        root (Any): Project root used to resolve relative configuration paths.
+        setup (str): Context setup determining which settings are required.
+        root (Any): Project directory that may contain .env.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Mapping of supported runtime setting names to string values.
+
+    Raises:
+        LauncherError: A required setting is missing.
     """
     from .Prompts import CONTEXT_SETUPS
     path = Path(root) / ".env"

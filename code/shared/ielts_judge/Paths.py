@@ -15,7 +15,20 @@ LEGACY_RELEASE_PATHS = {"aes": Path("results/stage3/release.json"), "panda": Pat
 
 
 def find_release(root: Path, name: str) -> Path:
-    """Select a release from the artifact inventory or the local checkout."""
+    """Resolve the release descriptor selected by the inventory or the checkout layout.
+
+    Args:
+        root (Path): Project or unpacked artifact root.
+        name (str): Release name, either aes or panda.
+
+    Returns:
+        Path: Inventory-selected descriptor, or the current path with a legacy
+            fallback. Without an inventory, the returned current path may be absent.
+
+    Raises:
+        KeyError: The release name is unknown.
+        FileNotFoundError: The inventory does not list either supported path.
+    """
     current = root / RELEASE_PATHS[name]
     legacy = root / LEGACY_RELEASE_PATHS[name]
     inventory = root / "ARTIFACT_MANIFEST.json"

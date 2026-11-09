@@ -22,14 +22,21 @@ from ielts_judge.Prompts import CONTEXT_SETUPS, submission_parts
 configure_environment()
 
 
-def main(command_arguments: Any=None) -> Any:
-    """Parse command options and execute this component's command-line operation.
+def main(command_arguments: Any=None) -> int:
+    """Score one submission or check local runtime readiness.
+
+    Print the result as JSON. With --output, also write it to a new file
+    without replacing an existing one.
 
     Args:
-        command_arguments (Any): Explicit CLI arguments; None reads the process argument list.
+        command_arguments (Any): Command-line argument strings, or None to use sys.argv.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        int: 0 for a score or a successful readiness check, 1 for a scoring
+            failure, or 2 for a launcher, input, or artifact error.
+
+    Raises:
+        SystemExit: Argument parsing exits for help or invalid usage.
     """
     parser = argparse.ArgumentParser(description="Score one Task/Essay using local AES/BGE and the hosted Qwen judge.")
     parser.add_argument("--task-file", type=Path, help="UTF-8 file containing the Task; requires --essay-file")

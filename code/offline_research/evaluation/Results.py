@@ -11,14 +11,14 @@ import zipfile
 
 
 def export_results(run: Any, destination: Any=None) -> Any:
-    """Export results.
+    """Archive an existing evaluation run with a file inventory.
 
     Args:
-        run (Any): Run used by this operation.
-        destination (Any): Destination used by this operation.
+        run (Any): Run directory containing run_manifest.json.
+        destination (Any): ZIP output directory. Defaults to the run's exports subdirectory.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Path to the new ZIP. A numeric suffix avoids overwriting an earlier export.
     """
     run = Path(run).resolve()
     destination = Path(destination).resolve() if destination is not None else run / "exports"
@@ -38,13 +38,13 @@ def export_results(run: Any, destination: Any=None) -> Any:
     files = [candidate_path for candidate_path in sorted(run.rglob("*")) if candidate_path.is_file() and "exports" not in candidate_path.relative_to(run).parts
              and not candidate_path.resolve().is_relative_to(destination) and not candidate_path.name.endswith(".tmp") and candidate_path.name != "export_manifest.json"]
     def digest(path: Any) -> str:
-        """Calculate the SHA-256 digest of a file without loading the whole file into memory.
+        """Hash an exported file in chunks.
 
         Args:
-            path (Any): Filesystem location to read, validate or write.
+            path (Any): Path of a file to include in the inventory.
 
         Returns:
-            str: The computed result for the supplied inputs.
+            str: SHA-256 hex digest of the file contents.
         """
         value = hashlib.sha256()
         with path.open("rb") as stream:
@@ -60,14 +60,14 @@ def export_results(run: Any, destination: Any=None) -> Any:
 
 
 def show_results(run: Any, destination: str="/kaggle/working/IELTS_Evaluation_Results") -> Any:
-    """Show results.
+    """Export a saved run and display calibration plots from its latest report.
 
     Args:
-        run (Any): Run used by this operation.
-        destination (str): Destination used by this operation.
+        run (Any): Run directory containing run_manifest.json.
+        destination (str): Directory where the ZIP will be written.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Path to the new ZIP, including when no report is available.
     """
     from IPython.display import display, Markdown, FileLink, Image
     run = Path(run).resolve()

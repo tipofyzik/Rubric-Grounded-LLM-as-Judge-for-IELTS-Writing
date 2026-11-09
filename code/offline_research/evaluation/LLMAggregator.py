@@ -1,3 +1,5 @@
+"""Load stored LLM scores, combine repeated predictions and report agreement."""
+
 from typing import Any
 import os
 import json

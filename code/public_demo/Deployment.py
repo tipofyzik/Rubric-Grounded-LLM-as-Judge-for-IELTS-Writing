@@ -17,10 +17,12 @@ from Runtime import file_hash
 
 
 def main() -> None:
-    """Parse command options and execute this component's command-line operation.
+    """Build, publish or inspect the hosted demo from the command line.
 
-    Returns:
-        None: This operation returns no value.
+    The build action assembles the Space locally. The artifacts action uploads
+    runtime assets to a private repository. The status action reads the Space.
+    The deploy action backs up the current revision, optionally sets runtime
+    secrets, and replaces Space files outside the new build except .gitattributes.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["artifacts", "build", "deploy", "status"])
@@ -76,8 +78,7 @@ def main() -> None:
         for name in ("HF_TOKEN", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"):
             api.add_space_secret(space_id, key=name, value=access[name])
         api.add_space_secret(space_id, key="IELTS_MODEL_KEY", value=access.get("IELTS_MODEL_KEY", "qwen25_1p5b"))
-    # Remove obsolete public probe fixtures in this commit. Their original
-    # revision is backed up above; never remove files outside this Space repo.
+    # Reconcile Space contents with the build in the same revision-guarded commit.
     current = {candidate_path.rfilename for candidate_path in info.siblings or []}
     public = set(deployment["files"]) | {"DEPLOYMENT.json", ".gitignore"}
     obsolete = sorted(current - public - {".gitattributes"})

@@ -23,18 +23,29 @@ CONFIG_PATH = Path(__file__).with_name("config.yaml")
 
 
 def task_options(config: dict[str, Any]) -> dict[str, Any]:
-    """Read task settings from current or saved research configs."""
+    """Read task switches from the current config or a saved research config.
+
+    Args:
+        config (dict[str, Any]): Research config containing tasks or the legacy switch mapping.
+
+    Returns:
+        dict[str, Any]: The task-switch mapping. The current tasks key takes precedence.
+
+    Raises:
+        KeyError: Neither key is present.
+    """
     return config["tasks"] if "tasks" in config else config["stage_switch"]
 
 
 def load_data(config: Any) -> Any:
-    """Load data.
+    """Load the prepared data, optionally rebuilding it from the raw sources.
 
     Args:
-        config (Any): Config used by this operation.
+        config (Any): Research configuration with task switches and dataset settings.
+            If transform_datasets is enabled, this function writes the prepared files.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (train DataFrame, test DataFrame, dataset manifest), filtered by source if requested.
     """
     dataset_config = config.get("dataset", {})
     transformer = DatasetTransformer(

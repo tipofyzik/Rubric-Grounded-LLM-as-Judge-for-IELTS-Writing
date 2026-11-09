@@ -11,13 +11,13 @@ ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parent
 
 
 def digest(path: Any) -> str:
-    """Calculate the SHA-256 digest of a file without loading the whole file into memory.
+    """Compute the SHA-256 digest of a file without reading it all into memory.
 
     Args:
-        path (Any): Filesystem location to read, validate or write.
+        path (Any): Path to the file to read.
 
     Returns:
-        str: The computed result for the supplied inputs.
+        str: Lowercase hexadecimal digest.
     """
     result = hashlib.sha256()
     with path.open("rb") as stream:
@@ -25,14 +25,23 @@ def digest(path: Any) -> str:
     return result.hexdigest()
 
 
-def restore(source: Any) -> Any:
-    """Validate compatible runtime artifacts before copying missing files into this checkout.
+def restore(source: Any) -> int:
+    """Restore compatible AES and PANDA artifacts from an unpacked release.
+
+    Validate source files and existing destinations before copying missing files.
+    Accept both current and legacy release layouts.
 
     Args:
-        source (Any): Source used by this operation.
+        source (Any): Root directory of the unpacked release, as a path or string.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        int: Number of files in the release to restore, including identical
+            files already present in the checkout.
+
+    Raises:
+        FileExistsError: A destination contains different content.
+        FileNotFoundError: A required release file is missing.
+        ValueError: A release is incompatible or fails validation.
     """
     from ielts_judge.Paths import RELEASE_PATHS, find_release
 

@@ -23,28 +23,28 @@ DECODING = {"name": "count_sigmoid_above_threshold", "probability_threshold": 0.
 
 
 def write_json(path: Any, value: Any) -> None:
-    """Serialize the supplied value to a UTF-8 JSON document.
+    """Write strict UTF-8 JSON to a file, replacing any existing contents.
 
     Args:
-        path (Any): Filesystem location to read, validate or write.
-        value (Any): Value used by this operation.
-
-    Returns:
-        None: This operation returns no value.
+        path (Any): Destination path in an existing directory.
+        value (Any): JSON-serializable value without NaN or infinity.
     """
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
 
 
 def save_bundle(model: Any, save_dir: Any, *, provenance: Any=None) -> Any:
-    """Publish a new directory only after every bundle component was written.
+    """Publish an AES bundle only after writing every component and the manifest.
 
     Args:
-        model (Any): Model used by this operation.
-        save_dir (Any): Save dir used by this operation.
-        provenance (Any): Provenance used by this operation.
+        model (Any): OrdinalRegression with encoder, tokenizer and training metadata.
+        save_dir (Any): New bundle directory.
+        provenance (Any): Optional dataset and training provenance mapping.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Published manifest, also attached to the model.
+
+    Raises:
+        FileExistsError: The requested destination already exists.
     """
     destination = Path(save_dir)
     if destination.exists():
@@ -78,13 +78,17 @@ def save_bundle(model: Any, save_dir: Any, *, provenance: Any=None) -> Any:
 
 
 def read_manifest(save_dir: Any) -> Any:
-    """Read manifest.
+    """Read the AES manifest and validate the bundle layout and contents.
 
     Args:
-        save_dir (Any): Save dir used by this operation.
+        save_dir (Any): Existing bundle directory containing manifest.json.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Manifest describing the architecture, input policy, training and files.
+
+    Raises:
+        FileNotFoundError: The bundle manifest is missing.
+        ValueError: The bundle is incompatible, incomplete or fails integrity checks.
     """
     root = Path(save_dir).resolve()
     manifest_path = root / "manifest.json"
@@ -127,14 +131,14 @@ def read_manifest(save_dir: Any) -> Any:
 
 
 def load_bundle(save_dir: Any, *, device: Any=None) -> Any:
-    """No pretrained downloads or partial state loading are permitted here.
+    """Reconstruct a verified AES model from local bundle files in evaluation mode.
 
     Args:
-        save_dir (Any): Save dir used by this operation.
-        device (Any): Device used by this operation.
+        save_dir (Any): Directory containing the manifest, weights, encoder and tokenizer.
+        device (Any): PyTorch device or None to use the model's default selection.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: OrdinalRegression with the full state loaded and training metadata restored.
     """
     manifest = read_manifest(save_dir)
     root = Path(save_dir)

@@ -17,11 +17,7 @@ ROOT = next(candidate_path for candidate_path in Path(__file__).resolve().parent
 
 
 def configure_environment() -> None:
-    """Select local model/cache locations before importing inference libraries.
-
-    Returns:
-        None: This operation returns no value.
-    """
+    """Configure offline Hugging Face access and local caches for this process."""
     os.environ["HF_HOME"] = str(ROOT / ".cache/huggingface")
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
@@ -35,25 +31,28 @@ from ielts_judge.Access import LauncherError, read_access as read_settings
 
 
 def read_access(setup: str) -> dict[str, str]:
-    """Read the runtime settings whitelist with process values taking precedence.
-    
+    """Read settings for local scoring, with process values taking precedence.
+
     Args:
         setup (str): Context setup selecting rubric, PANDA references and AES guidance.
-    
+
     Returns:
-        dict[str, str]: The computed result for the supplied inputs.
+        dict[str, str]: Runtime settings for the selected setup.
     """
     return read_settings(setup, root=ROOT)
 
 
 def check_space(values: dict[str, str]) -> tuple[str, str]:
-    """Validate the configured Space identifier and discover its remote judge endpoint.
-    
+    """Discover the remote judge endpoint exposed by the configured Space.
+
     Args:
-        values (dict[str, str]): Caller-supplied settings or values used by this operation.
-    
+        values (dict[str, str]): Settings containing HF_SPACE_ID and HF_TOKEN.
+
     Returns:
-        tuple[str, str]: Space origin and the available judge endpoint name.
+        tuple[str, str]: HTTPS Space origin and the available endpoint name.
+
+    Raises:
+        LauncherError: The Space identifier, access, response or endpoint is invalid.
     """
     repository = values.get("HF_SPACE_ID", "")
     import re
@@ -77,14 +76,17 @@ def check_space(values: dict[str, str]) -> tuple[str, str]:
 
 
 def preflight(values: dict[str, str], setup: str) -> dict[str, Any]:
-    """Check runtime files, package versions and the remote endpoint without model inference.
-    
+    """Check that required local files and the hosted judge endpoint are available.
+
+    Read installed package versions without comparing pins. This check does not
+    load models, run inference or query Supabase.
+
     Args:
-        values (dict[str, str]): Caller-supplied settings or values used by this operation.
-        setup (str): Context setup selecting rubric, PANDA references and AES guidance.
-    
+        values (dict[str, str]): Settings containing HF_SPACE_ID and HF_TOKEN.
+        setup (str): Context setup determining whether AES and PANDA files are required.
+
     Returns:
-        dict[str, Any]: Named result fields and metadata produced by this operation.
+        dict[str, Any]: Readiness status, Space origin, endpoint and installed versions.
     """
     _, references, aes = CONTEXT_SETUPS[setup]
     if aes:
@@ -110,15 +112,12 @@ def preflight(values: dict[str, str], setup: str) -> dict[str, Any]:
 class RemoteJudge:
     """Adapt the hosted judge endpoint to the shared scoring interface and tokenizer contract."""
     def __init__(self, values: Any, base: Any, endpoint: str = "judge") -> None:
-        """Initialize this component's settings and collaborators.
+        """Load the pinned judge tokenizer from the local cache and configure remote calls.
 
         Args:
-            values (Any): Caller-supplied settings or values used by this operation.
-            base (Any): Base used by this operation.
-            endpoint (str): Judge endpoint discovered in the Space configuration.
-
-        Returns:
-            None: This operation returns no value.
+            values (Any): Settings with HF_TOKEN and an optional IELTS_MODEL_KEY.
+            base (Any): HTTPS origin of the Space.
+            endpoint (str): Endpoint name discovered in the Space configuration.
         """
         self.registry = ModelRegistry()
         self.profile = self.registry.require_enabled(values.get("IELTS_MODEL_KEY", "qwen25_1p5b"))
@@ -130,27 +129,32 @@ class RemoteJudge:
             clean_up_tokenization_spaces=False)
 
     def count_input_tokens(self, messages: list[dict[str, str]]) -> int:
-        """Count the complete chat render with the selected judge tokenizer.
+        """Count tokens after applying the complete judge chat template.
 
         Args:
-            messages (list[dict[str, str]]): Ordered chat messages rendered with the selected tokenizer template.
+            messages (list[dict[str, str]]): Ordered chat messages containing role and content.
 
         Returns:
-            int: The computed result for the supplied inputs.
+            int: Token count, including the generation prompt.
         """
         text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         return int(self.tokenizer(text, return_tensors="pt", add_special_tokens=False)["input_ids"].shape[1])
 
     def predict_messages(self, *, model_key: str, messages: list[dict[str, str]], deadline: float) -> Any:
-        """Generate a completion for validated chat messages within the shared deadline.
+        """Submit a judge request and read the first completed Gradio event.
 
         Args:
-            model_key (str): Enabled immutable judge profile key from the model registry.
-            messages (list[dict[str, str]]): Ordered chat messages rendered with the selected tokenizer template.
-            deadline (float): Absolute monotonic request deadline shared by the processing stages.
+            model_key (str): Enabled judge profile key from the model registry.
+            messages (list[dict[str, str]]): Ordered chat messages containing role and content.
+            deadline (float): Absolute monotonic deadline, in seconds.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: First item of the completion event, as returned by the hosted judge.
+
+        Raises:
+            TimeoutError: The shared deadline or an HTTP timeout expires.
+            JudgeQuotaError: The hosted endpoint reports GPU quota exhaustion.
+            RuntimeError: The stream reports an error or ends without a completion.
         """
         from ielts_judge.Scoring import JudgeQuotaError
         remaining = deadline - time.monotonic()
@@ -186,15 +190,15 @@ class RemoteJudge:
 
 
 def load_service(judge: Any, values: Any, setup: str) -> Any:
-    """Load service.
+    """Load the local scoring components required by the selected context setup.
 
     Args:
-        judge (Any): Loaded judge adapter providing token counting and generation.
-        values (Any): Caller-supplied settings or values used by this operation.
+        judge (Any): Remote judge adapter providing token counting and generation.
+        values (Any): Settings with Supabase URL and publishable key when PANDA is enabled.
         setup (str): Context setup selecting rubric, PANDA references and AES guidance.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: ScoringService configured with the local components and remote judge.
     """
     import torch
     from transformers.utils import logging

@@ -1,3 +1,5 @@
+"""Collect essay scores from local models, Hugging Face endpoints and OpenAI."""
+
 from typing import Any
 import pandas as pd
 import torch

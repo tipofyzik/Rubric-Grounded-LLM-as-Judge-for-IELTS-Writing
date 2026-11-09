@@ -426,15 +426,20 @@ def validate_splits(train: Any, test: Any) -> None:
 
 
 def load_prepared(output: Any, source: str="combined", *, allow_partial: bool=False) -> Any:
-    """Load only verified accepted splits. Loading never rebuilds source files.
+    """Validate a prepared dataset and load its train and test splits.
 
     Args:
-        output (Any): Output used by this operation.
-        source (str): Source used by this operation.
-        allow_partial (bool): Allow partial used by this operation.
+        output (Any): Existing dataset directory containing manifest.json and the splits.
+        source (str): Keep both sources (combined), or filter to chillies or writing9.
+        allow_partial (bool): Allow an explicitly partial release, such as a smoke-test dataset.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (train DataFrame, test DataFrame, manifest dict). Both frames carry
+            the dataset version and manifest identity in their attrs.
+
+    Raises:
+        ValueError: The source or release is unsupported, partial data is disallowed,
+            or the manifest, files or splits fail validation.
     """
     output = Path(output).resolve()
     manifest_path = output / "manifest.json"

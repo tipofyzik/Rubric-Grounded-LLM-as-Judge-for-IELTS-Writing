@@ -22,23 +22,23 @@ from offline_research.evaluation.Context import asset_paths
 
 
 def unique_name() -> Any:
-    """Unique name.
+    """Generate a name for a new run, report or journal segment.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: UTC timestamp followed by a random suffix.
     """
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:10]
 
 
 def write_new_json(path: Any, value: Any) -> None:
-    """Write new json.
+    """Write strict JSON through a temporary sibling file.
 
     Args:
-        path (Any): Filesystem location to read, validate or write.
-        value (Any): Value used by this operation.
+        path (Any): Destination path in an existing directory.
+        value (Any): JSON-serializable value without NaN or infinity.
 
-    Returns:
-        None: This operation returns no value.
+    Raises:
+        FileExistsError: The destination already exists.
     """
     path = Path(path)
     if path.exists():
@@ -57,10 +57,11 @@ def write_new_json(path: Any, value: Any) -> None:
 
 
 def environment() -> dict[str, Any]:
-    """Environment.
+    """Collect the runtime versions used to identify an evaluation run.
 
     Returns:
-        dict[str, Any]: Named result fields and metadata produced by this operation.
+        dict[str, Any]: Python and platform versions and a map of dependency versions.
+            A missing package has value None.
     """
     packages = {}
     for package in ("numpy", "pandas", "pyarrow", "scipy", "scikit-learn", "matplotlib", "torch",
@@ -73,16 +74,24 @@ def environment() -> dict[str, Any]:
 
 
 def initialize_run(root: Any, config: Any, output_root: Any, resume: Any=None) -> Any:
-    """Initialize run.
+    """Create an evaluation run or validate an existing run for inference.
+
+    A new run writes its configuration, selection, labels and manifest. Resume
+    requires the same inference settings, assets, source file contents, Python
+    and package versions, selection and saved labels.
 
     Args:
-        root (Any): Project root used to resolve relative configuration paths.
-        config (Any): Config used by this operation.
-        output_root (Any): Output root used by this operation.
-        resume (Any): Resume used by this operation.
+        root (Any): Checkout root for configuration, code and artifacts.
+        config (Any): Validated evaluation configuration. Report options can change on resume.
+        output_root (Any): Directory under which to create new runs.
+        resume (Any): Existing run directory, or None to create a new run.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (run directory, selected essay DataFrame, experiment manifest,
+            run manifest, resolved asset paths).
+
+    Raises:
+        ValueError: A resume input no longer matches the saved run.
     """
     root = Path(root).resolve()
     paths = asset_paths(root, config)
@@ -130,19 +139,27 @@ def initialize_run(root: Any, config: Any, output_root: Any, resume: Any=None) -
 
 
 def prepare_run_context(run: Any, paths: Any, frame: Any, experiment: Any, manifest: Any, runtime: Any, preparer: Any=None) -> Any:
-    """Prepare run context.
+    """Reuse a run's published context or invoke a preparer for a new one.
+
+    A new context is written with its timing summary before publishing the
+    release descriptor. Loaded and newly written contexts are checked against
+    the selected essay IDs and content.
 
     Args:
-        run (Any): Run used by this operation.
-        paths (Any): Paths used by this operation.
-        frame (Any): Frame used by this operation.
-        experiment (Any): Experiment used by this operation.
-        manifest (Any): Manifest used by this operation.
-        runtime (Any): Runtime used by this operation.
-        preparer (Any): Preparer used by this operation.
+        run (Any): Existing evaluation run directory.
+        paths (Any): Resolved AES and PANDA asset directories.
+        frame (Any): Selected essay DataFrame with essay IDs and content fingerprints.
+        experiment (Any): Experiment manifest identifying the dataset and train split.
+        manifest (Any): Run manifest used to bind a context release to its run.
+        runtime (Any): Context device, AES batch size and reference count settings.
+        preparer (Any): Optional callable taking paths, frame and experiment plus
+            the device, batch_size and k keywords. It returns records and timings.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: List of prepared context records, one per selected essay.
+
+    Raises:
+        ValueError: The context does not match the run or selected essays.
     """
     release_path = Path(run) / "context_release.json"
     if release_path.exists():
@@ -172,14 +189,17 @@ def prepare_run_context(run: Any, paths: Any, frame: Any, experiment: Any, manif
 
 
 def read_run_context(run: Any, manifest: Any) -> Any:
-    """Read run context.
+    """Load and verify the published context for a run.
 
     Args:
-        run (Any): Run used by this operation.
-        manifest (Any): Manifest used by this operation.
+        run (Any): Evaluation run directory containing context_release.json.
+        manifest (Any): Run manifest containing the fingerprint and planned essay IDs.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: List of context records, with exactly one per planned essay.
+
+    Raises:
+        ValueError: Context provenance, file content or essay IDs do not match the run.
     """
     run = Path(run).resolve()
     release = json.loads((run / "context_release.json").read_text(encoding="utf-8"))
@@ -195,14 +215,18 @@ def read_run_context(run: Any, manifest: Any) -> Any:
 
 
 def read_segment(path: Any, *, tolerate_tail: bool=True) -> Any:
-    """Read segment.
+    """Read committed JSON Lines records from one journal segment.
 
     Args:
-        path (Any): Filesystem location to read, validate or write.
-        tolerate_tail (bool): Tolerate tail used by this operation.
+        path (Any): Path to the segment file.
+        tolerate_tail (bool): Warn and ignore a final line lacking a newline.
+            False parses it like any other JSON record.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Decoded records in file order.
+
+    Raises:
+        ValueError: A record being read is malformed.
     """
     result = []
     with Path(path).open("rb") as stream:
@@ -218,44 +242,53 @@ def read_segment(path: Any, *, tolerate_tail: bool=True) -> Any:
 
 
 def prediction_records(run: Any) -> list[Any]:
-    """Prediction records.
+    """Read prediction segments in filename order.
 
     Args:
-        run (Any): Run used by this operation.
+        run (Any): Evaluation run directory containing the predictions subdirectory.
 
     Returns:
-        list[Any]: The computed result for the supplied inputs.
+        list[Any]: All committed prediction records, or an empty list for a run
+            without predictions.
     """
     return [record for path in sorted((Path(run) / "predictions").glob("*.jsonl")) for record in read_segment(path)]
 
 
 def job_key(record: Any) -> Any:
-    """Job key.
+    """Identify a planned prediction independently of journal segment.
 
     Args:
-        record (Any): Record used by this operation.
+        record (Any): Prediction record containing model_key, setup, repeat and essay_id.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (model key, context setup, repeat index, essay ID).
     """
     return record["model_key"], record["setup"], record["repeat"], record["essay_id"]
 
 
 def infer_models(root: Any, config: Any, run: Any, frame: Any, contexts: Any, manifest: Any, *, max_jobs: Any=None, judge_factory: Any=None) -> Any:
-    """Infer models.
+    """Run missing evaluation jobs and append their results to a new journal segment.
+
+    Previously committed jobs, including failed ones, are kept. A judge runtime
+    failure is written to the journal before inference stops.
 
     Args:
-        root (Any): Project root used to resolve relative configuration paths.
-        config (Any): Config used by this operation.
-        run (Any): Run used by this operation.
-        frame (Any): Frame used by this operation.
-        contexts (Any): Contexts used by this operation.
-        manifest (Any): Manifest used by this operation.
-        max_jobs (Any): Max jobs used by this operation.
-        judge_factory (Any): Judge factory used by this operation.
+        root (Any): Checkout root containing the evaluation model registry.
+        config (Any): Evaluation configuration defining models, setups, repeats and runtime.
+        run (Any): Existing evaluation run directory.
+        frame (Any): Selected essay DataFrame with IDs, task prompts and essay text.
+        contexts (Any): Prepared AES and PANDA context records keyed by essay ID in the run.
+        manifest (Any): Run manifest with the evaluation plan and provenance.
+        max_jobs (Any): Positive limit on new jobs this invocation, or None for all.
+        judge_factory (Any): Optional callable taking a model key and registry and
+            returning a judge adapter. None loads the pinned model.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Number of new results committed, including any recorded failures.
+
+    Raises:
+        ValueError: Journal entries or execution settings are incompatible with the run.
+        RuntimeError: A required GPU is unavailable or a judge runtime fails.
     """
     from ielts_judge.llm.Judge import Judge
     from ielts_judge.Scoring import ScoringLimits, ScoringService
@@ -263,15 +296,15 @@ def infer_models(root: Any, config: Any, run: Any, frame: Any, contexts: Any, ma
     import torch
 
     class RecordingJudge(Judge):
-        """Manage recording judge through the operations defined by this component."""
+        """Capture generation diagnostics for the evaluation journal."""
         def predict_messages(self, **keyword_arguments: Any) -> Any:
-            """Generate a completion for validated chat messages within the shared deadline.
+            """Run the judge and retain diagnostics or the exception type for the journal.
 
             Args:
-                keyword_arguments (Any): Named arguments forwarded to the underlying implementation.
+                keyword_arguments (Any): Model key, chat messages and deadline passed to Judge.
 
             Returns:
-                Any: The computed result for the supplied inputs.
+                Any: Judge generation result, with GPU measurements when available.
             """
             self.last_generation = {}
             self.last_error_type = None
@@ -390,16 +423,19 @@ def infer_models(root: Any, config: Any, run: Any, frame: Any, contexts: Any, ma
 
 
 def report_run(run: Any, contexts: Any, manifest: Any, options: Any) -> Any:
-    """Report run.
+    """Build a new report using saved context, labels and prediction journals.
 
     Args:
-        run (Any): Run used by this operation.
-        contexts (Any): Contexts used by this operation.
-        manifest (Any): Manifest used by this operation.
-        options (Any): Options used by this operation.
+        run (Any): Evaluation run directory.
+        contexts (Any): Prepared context records containing the AES baseline scores.
+        manifest (Any): Run manifest containing the plan and reference file identity.
+        options (Any): Report options selecting plots and output settings.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Path to the newly written report directory.
+
+    Raises:
+        ValueError: The saved labels differ from those recorded for the run.
     """
     from offline_research.evaluation.Report import write_report
     records = [{"model_key": "aes", "setup": "aes", "repeat": 0, "essay_id": row["essay_id"],
@@ -414,13 +450,13 @@ def report_run(run: Any, contexts: Any, manifest: Any, options: Any) -> Any:
 
 
 def export_run(run: Any) -> Any:
-    """Export run.
+    """Archive an evaluation run, including its saved reports and predictions.
 
     Args:
-        run (Any): Run used by this operation.
+        run (Any): Evaluation run directory.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Path to the new results ZIP.
     """
     from offline_research.evaluation.Results import export_results
     return export_results(run)

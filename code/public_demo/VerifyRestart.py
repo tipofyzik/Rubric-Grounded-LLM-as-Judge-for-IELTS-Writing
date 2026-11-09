@@ -16,10 +16,11 @@ from Verify import score
 
 
 def main() -> None:
-    """Parse command options and execute this component's command-line operation.
+    """Restart the deployed Space and verify scoring on a new runtime instance.
 
-    Returns:
-        None: This operation returns no value.
+    Requires a local deployment record and a successful verification for its
+    source revision. Refuses to restart if the live revision differs from the
+    recorded deployment.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--authenticated", action="store_true")

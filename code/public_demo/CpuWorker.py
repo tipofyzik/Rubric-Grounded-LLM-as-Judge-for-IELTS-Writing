@@ -7,13 +7,10 @@ import os
 
 
 def serve(connection: Any) -> None:
-    """Process CPU-model commands until the parent closes the worker connection.
+    """Process CPU model commands until the parent requests shutdown.
 
     Args:
-        connection (Any): Connection used by this operation.
-
-    Returns:
-        None: This operation returns no value.
+        connection (Any): Child end of the duplex pipe for commands and replies.
     """
     import torch
     from ielts_judge.aes.Inference import load_bundle
@@ -50,24 +47,21 @@ def serve(connection: Any) -> None:
 class AESProxy:
     """Forward AES predictions to the separately owned CPU model process."""
     def __init__(self, worker: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Keep the worker that owns the loaded AES model.
 
         Args:
-            worker (Any): Worker used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            worker (Any): CPUWorker with an initialized AES model.
         """
         self.worker = worker
 
     def predict_essay(self, essay: str) -> Any:
-        """Return essay-only AES estimates with the model's input-length metadata.
+        """Forward an essay to the CPU worker for AES prediction.
 
         Args:
-            essay (str): English essay text supplied for evaluation.
+            essay (str): Essay text to score.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: AES scores and model input-length metadata.
         """
         return self.worker.exchange("aes", essay)
 
@@ -75,25 +69,22 @@ class AESProxy:
 class EncoderProxy:
     """Forward embedding requests while retaining the accepted encoder profile."""
     def __init__(self, worker: Any, profile: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Bind a worker-owned encoder to its embedding profile.
 
         Args:
-            worker (Any): Worker used by this operation.
-            profile (Any): Profile used by this operation.
-
-        Returns:
-            None: This operation returns no value.
+            worker (Any): CPUWorker with an initialized encoder.
+            profile (Any): Pinned profile used when loading the encoder.
         """
         self.worker, self.profile = worker, profile
 
     def encode(self, texts: Any) -> Any:
-        """Encode.
+        """Request a batch of embeddings from the worker.
 
         Args:
-            texts (Any): Texts used by this operation.
+            texts (Any): Ordered list of input texts.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: (Embeddings, original token lengths), aligned with the input texts.
         """
         return self.worker.exchange("encode", texts)
 
@@ -102,11 +93,7 @@ class CPUWorker:
     """Own one spawned CPU model process and its synchronous command connection."""
 
     def __init__(self) -> None:
-        """Initialize this component's settings and collaborators.
-
-        Returns:
-            None: This operation returns no value.
-        """
+        """Spawn the CPU process, open its pipe and register cleanup at exit."""
         self.owner_pid = os.getpid()
         context = multiprocessing.get_context("spawn")
         self.connection, child = context.Pipe()
@@ -116,14 +103,18 @@ class CPUWorker:
         atexit.register(self.close)
 
     def exchange(self, operation: str, payload: Any) -> Any:
-        """Send one synchronous CPU command and receive its matching result; the scoring service serializes callers.
+        """Run one synchronous CPU command. Callers must serialize access.
 
         Args:
-            operation (str): Operation used by this operation.
-            payload (Any): Payload used by this operation.
+            operation (str): One of load_aes, load_encoder, aes or encode.
+            payload (Any): Bundle path, encoder profile, essay or list of texts, respectively.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: Load acknowledgment, AES prediction or encoder output for the operation.
+
+        Raises:
+            RuntimeError: The worker is unavailable or the command failed.
+            TimeoutError: No reply arrived within 120 seconds. The worker is closed.
         """
         if not self.process.is_alive():
             raise RuntimeError("CPU model process is unavailable; restart the runtime")
@@ -137,37 +128,39 @@ class CPUWorker:
         return result
 
     def load_aes(self, path: Any) -> Any:
-        """Load the accepted AES bundle in the child process and return its CPU proxy.
+        """Load the accepted AES bundle in the child process.
 
         Args:
-            path (Any): Filesystem location to read, validate or write.
+            path (Any): Path to the AES bundle directory.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: AESProxy bound to the CPU worker.
+
+        Raises:
+            ValueError: The worker reports a device other than CPU.
         """
         if self.exchange("load_aes", str(path))["device"] != "cpu":
             raise ValueError("AES must remain on CPU")
         return AESProxy(self)
 
     def load_encoder(self, profile: Any) -> Any:
-        """Load the pinned embedding encoder in the child process and return its proxy.
+        """Load the pinned embedding encoder in the child process.
 
         Args:
-            profile (Any): Profile used by this operation.
+            profile (Any): Verified embedding profile.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: EncoderProxy bound to the CPU worker and profile.
+
+        Raises:
+            ValueError: The worker reports a device other than CPU.
         """
         if self.exchange("load_encoder", profile)["device"] != "cpu":
             raise ValueError("Retrieval encoder must remain on CPU")
         return EncoderProxy(self, profile)
 
     def close(self) -> None:
-        """Release this component's owned resources and complete its shutdown protocol.
-
-        Returns:
-            None: This operation returns no value.
-        """
+        """Close the pipe and stop the child process from its owning process."""
         if os.getpid() != self.owner_pid:
             return
         if self.process.is_alive():

@@ -18,13 +18,17 @@ sys.path[:0] = [str(ROOT / "code"), str(ROOT / "code/shared")]
 
 
 def main(command_arguments: Any=None) -> int:
-    """Parse command options and execute this component's command-line operation.
+    """Prepare inputs, run offline inference, rebuild reports or run all three.
+
+    Inference resumes an existing compatible run. Report mode reads the saved
+    run and can regenerate plots without loading a judge. The export option
+    creates a results ZIP.
 
     Args:
-        command_arguments (Any): Explicit CLI arguments; None reads the process argument list.
+        command_arguments (Any): Command-line argument strings, or None to use sys.argv.
 
     Returns:
-        int: The computed result for the supplied inputs.
+        int: Zero after the requested operation succeeds.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=ROOT / "code/offline_research/notebooks/ModelEvaluationConfig.yaml")

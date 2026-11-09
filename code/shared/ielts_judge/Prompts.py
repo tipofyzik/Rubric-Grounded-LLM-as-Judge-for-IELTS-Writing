@@ -57,13 +57,16 @@ class JudgeContext:
 
 
 def _public_scores(scores: Mapping[str, float]) -> dict[str, float]:
-    """Map legacy context names once without changing the supplied values.
+    """Validate context scores and translate legacy criterion IDs.
 
     Args:
-        scores (Mapping[str, float]): Four criterion scores using the public IELTS score contract.
+        scores (Mapping[str, float]): Criterion names and finite scores from 0 to 9.
 
     Returns:
-        dict[str, float]: Named result fields and metadata produced by this operation.
+        dict[str, float]: The same values keyed by public criterion IDs.
+
+    Raises:
+        ValueError: A criterion is unknown or duplicated, or a value is invalid.
     """
     result = {}
     for key, value in scores.items():
@@ -79,13 +82,17 @@ def _public_scores(scores: Mapping[str, float]) -> dict[str, float]:
 
 
 def submission_parts(submission: Any) -> tuple[str, str]:
-    """Only Task/Essay enter inference; dataset target columns are never serialized.
+    """Extract the two input fields allowed into inference.
 
     Args:
-        submission (Any): Submission used by this operation.
+        submission (Any): Dictionary with nonempty task_prompt and essay strings.
+            Other fields, including dataset labels, are ignored.
 
     Returns:
-        tuple[str, str]: The computed result for the supplied inputs.
+        tuple[str, str]: Original task prompt and essay, in that order.
+
+    Raises:
+        ValueError: The record or either required field is invalid.
     """
     if not isinstance(submission, dict):
         raise ValueError("Inference requires a record with task_prompt and essay")
@@ -99,15 +106,20 @@ def submission_parts(submission: Any) -> tuple[str, str]:
 
 def build_judge_messages(task_prompt: str, essay: str,
                          context: JudgeContext | None = None) -> list[dict[str, str]]:
-    """Reference IDs/tasks/essays stay in metadata; preserve all supplied text.
+    """Build system and user chat messages for one scoring request.
+
+    The prompt includes the submission text as supplied. Reference examples
+    contribute source scores and insights. Reference IDs, tasks and essays
+    stay outside the prompt.
 
     Args:
-        task_prompt (str): English Task 2 question against which the essay is assessed.
-        essay (str): English essay text supplied for evaluation.
-        context (JudgeContext | None): Context used by this operation.
+        task_prompt (str): IELTS Writing Task 2 question.
+        essay (str): Essay to score.
+        context (JudgeContext | None): Optional rubric, reference insights and AES
+            guidance. None uses the rubric-only default.
 
     Returns:
-        list[dict[str, str]]: The computed result for the supplied inputs.
+        list[dict[str, str]]: Ordered system and user messages with role and content.
     """
     submission_parts({"task_prompt": task_prompt, "essay": essay})
     if context is None:

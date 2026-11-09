@@ -18,13 +18,16 @@ EMBEDDING_DEFAULTS = {"model_id": "BAAI/bge-base-en-v1.5",
 
 
 def embedding_profile(config: Any=None) -> dict[str, Any]:
-    """Embedding profile.
+    """Build the normalized BGE embedding profile used by corpus and query encoders.
 
     Args:
-        config (Any): Config used by this operation.
+        config (Any): Optional model_id, revision and max_length overrides.
 
     Returns:
-        dict[str, Any]: Named result fields and metadata produced by this operation.
+        dict[str, Any]: Pinned model settings and the 768-dimensional cosine contract.
+
+    Raises:
+        ValueError: The model, revision or token limit is unsupported.
     """
     if config is not None and (not isinstance(config, dict) or config.keys() - EMBEDDING_DEFAULTS.keys()):
         raise ValueError("Unknown embedding options")
@@ -40,13 +43,16 @@ def embedding_profile(config: Any=None) -> dict[str, Any]:
 
 
 def vector(value: Any) -> Any:
-    """Vector.
+    """Validate and convert one normalized PANDA embedding.
 
     Args:
-        value (Any): Value used by this operation.
+        value (Any): Numeric list or NumPy array with 768 components.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: One-dimensional float32 NumPy array.
+
+    Raises:
+        ValueError: The vector has an invalid type, shape, value or norm.
     """
     if not isinstance(value, (list, np.ndarray)) or any(isinstance(current_value, (bool, np.bool_)) or not isinstance(current_value, Real) for current_value in value):
         raise ValueError("Embedding must be a numeric vector")
@@ -63,14 +69,14 @@ class Encoder:
     """One encoder/profile for documents and queries, with explicit lengths and right truncation."""
 
     def __init__(self, profile: Any, *, device: str="cpu") -> None:
-        """Initialize this component's settings and collaborators.
+        """Load the embedding model and apply the corpus token limit.
 
         Args:
-            profile (Any): Profile used by this operation.
-            device (str): Device used by this operation.
+            profile (Any): Pinned embedding settings from the corpus manifest.
+            device (str): PyTorch device to load the model on.
 
-        Returns:
-            None: This operation returns no value.
+        Raises:
+            ValueError: The loaded encoder dimension does not match the profile.
         """
         from sentence_transformers import SentenceTransformer
 
@@ -82,13 +88,14 @@ class Encoder:
             raise ValueError("Encoder dimension differs from corpus schema")
 
     def encode(self, texts: Any) -> Any:
-        """Encode.
+        """Encode essays using the corpus profile and retain untruncated token counts.
 
         Args:
-            texts (Any): Texts used by this operation.
+            texts (Any): Ordered list of essay texts.
 
         Returns:
-            Any: The computed result for the supplied inputs.
+            Any: (Normalized float32 embedding matrix, original token length list),
+                both in input order. Model input is right-truncated to the profile limit.
         """
         lengths = [len(ids) for ids in self.model.tokenizer(texts, truncation=False, padding=False)["input_ids"]]
         values = self.model.encode(texts, batch_size=32, prompt="", normalize_embeddings=True,
@@ -97,14 +104,18 @@ class Encoder:
 
 
 def validate_record(record: Any, schema_version: str="panda-corpus-v1") -> Any:
-    """Validate record.
+    """Check a PANDA record against the selected corpus schema.
 
     Args:
-        record (Any): Record used by this operation.
-        schema_version (str): Schema version used by this operation.
+        record (Any): Decoded record with train provenance, source scores and embedding.
+        schema_version (str): v1 stores criterion evidence, while v2 preserves
+            original completion text and its generation status.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: The validated record, unchanged.
+
+    Raises:
+        ValueError: Record content or provenance violates the corpus schema.
     """
     required = {"essay_id", "essay_hash", "task_prompt", "essay", "dataset_source", "split",
                 "source_scores_json", "criteria", "embedding", "original_tokens", "used_tokens", "truncated"}
@@ -161,13 +172,13 @@ class Corpus:
     """Validate the complete artifact on open; stream records instead of retaining all vectors in RAM."""
 
     def __init__(self, path: Any) -> None:
-        """Initialize this component's settings and collaborators.
+        """Open and verify a full-train PANDA release.
 
         Args:
-            path (Any): Filesystem location to read, validate or write.
+            path (Any): Directory containing manifest.json and records.jsonl.
 
-        Returns:
-            None: This operation returns no value.
+        Raises:
+            ValueError: The manifest, records or train membership fail verification.
         """
         self.path = Path(path)
         self.manifest = manifest = read_json(self.path / "manifest.json")
@@ -221,10 +232,10 @@ class Corpus:
             "reference_corpus": manifest["train"], "dataset_manifest_sha256": manifest["dataset_manifest_sha256"]})
 
     def records(self) -> Iterator[Any]:
-        """Records.
+        """Stream canonical JSON Lines records in corpus order.
 
         Returns:
-            Iterator[Any]: The computed result for the supplied inputs.
+            Iterator[Any]: Pairs of original JSON line and decoded record dictionary.
         """
         with (self.path / "records.jsonl").open(encoding="utf-8") as stream:
             for line in stream:

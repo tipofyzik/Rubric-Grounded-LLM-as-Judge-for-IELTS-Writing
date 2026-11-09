@@ -25,26 +25,29 @@ DEFAULT_REPORT = {
 
 
 def fingerprint(value: Any) -> Any:
-    """Fingerprint.
+    """Compute a stable digest of a JSON-serializable value.
 
     Args:
-        value (Any): Value used by this operation.
+        value (Any): Value serializable as strict JSON with sorted keys.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: SHA-256 hex digest of the canonical serialization.
     """
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False,
                                      separators=(",", ":")).encode()).hexdigest()
 
 
 def report_options(options: Any=None) -> Any:
-    """Report options.
+    """Merge report defaults, translate saved plot names and validate options.
 
     Args:
-        options (Any): Options used by this operation.
+        options (Any): Optional mapping of metrics, plots, formats, DPI, layout and style.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Independent dictionary of complete report options.
+
+    Raises:
+        ValueError: An option name or value is unsupported.
     """
     options = {} if options is None else options
     if not isinstance(options, dict) or options.keys() - DEFAULT_REPORT.keys():
@@ -71,14 +74,17 @@ def report_options(options: Any=None) -> Any:
 
 
 def load_config(path: Any, root: Any) -> Any:
-    """Load config.
+    """Read and validate a standalone evaluation YAML file.
 
     Args:
-        path (Any): Filesystem location to read, validate or write.
-        root (Any): Project root used to resolve relative configuration paths.
+        path (Any): Path to a model-evaluation-v1 config.
+        root (Any): Checkout root for the configured model registry.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Config dictionary with validated model keys, setups, runtime and report options.
+
+    Raises:
+        ValueError: The configuration violates the evaluation schema.
     """
     config = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     required = {"schema_version", "experiment_name", "inputs", "models", "model_registry", "setups",

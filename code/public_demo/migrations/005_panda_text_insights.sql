@@ -5,6 +5,7 @@ alter table ielts.reference_essays add column if not exists insights_text text;
 alter table ielts.reference_essays add column if not exists generation_status text;
 alter table ielts.reference_essays add column if not exists generation_error text;
 
+-- Register v1 or v2 manifests using the import workflow in 004.
 create or replace function public.panda_begin(p_manifest jsonb) returns jsonb
 language plpgsql security invoker set search_path = pg_catalog, extensions as $$
 declare c ielts.corpus_releases; m jsonb := p_manifest; k text; item jsonb;
@@ -36,6 +37,8 @@ begin
   return jsonb_build_object('corpus_id',c.corpus_id,'state',c.state);
 end $$;
 
+-- For v2, store the original completion and its generation status alongside
+-- the source scores. The batch remains an array of serialized record lines.
 create or replace function public.panda_import(p_corpus_id text, p_records jsonb) returns jsonb
 language plpgsql security invoker set search_path = pg_catalog, extensions as $$
 declare c ielts.corpus_releases; raw text; r jsonb; h text; old_hash text; k text; item jsonb;
@@ -97,6 +100,9 @@ begin
   return jsonb_build_object('count',jsonb_array_length(p_records));
 end $$;
 
+-- Return corpus metadata and up to p_match_count cosine-ranked references.
+-- Exclude identical essay content and the supplied essay ID. Each reference
+-- contains source scores and insights as v2 completion text or a v1 object.
 create or replace function public.panda_match(
   p_corpus_id text, p_embedding_profile_sha256 text, p_query_embedding jsonb,
   p_query_hash text, p_query_id text default null, p_match_count integer default 1, p_threshold real default null

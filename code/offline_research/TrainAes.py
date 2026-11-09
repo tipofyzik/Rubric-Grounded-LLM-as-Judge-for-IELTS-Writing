@@ -17,10 +17,13 @@ import yaml
 
 
 def main() -> Any:
-    """Parse command options and execute this component's command-line operation.
+    """Run AES training, token-length audit or single-essay prediction.
+
+    Training and audit require an existing prepared release and write results
+    to a new run directory. Prediction loads a bundle and prints the result.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Training report, length summaries or prediction, also printed as JSON.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)

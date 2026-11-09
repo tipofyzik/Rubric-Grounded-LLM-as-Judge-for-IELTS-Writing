@@ -15,13 +15,15 @@ from local_backup.Runtime import LauncherError, RemoteJudge, configure_environme
 
 
 def main(command_arguments: Any=None) -> int:
-    """Parse command options and execute this component's command-line operation.
+    """Check local readiness or launch the scoring UI on loopback.
+
+    With --check, print a readiness JSON object and exit before loading models.
 
     Args:
-        command_arguments (Any): Explicit CLI arguments; None reads the process argument list.
+        command_arguments (Any): Command-line argument strings, or None to use sys.argv.
 
     Returns:
-        int: The computed result for the supplied inputs.
+        int: Zero after a successful check or UI exit, 1 if runtime startup fails.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=7860)

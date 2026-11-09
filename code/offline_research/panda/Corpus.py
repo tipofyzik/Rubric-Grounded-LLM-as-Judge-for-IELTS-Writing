@@ -14,19 +14,26 @@ from ielts_judge.data.Experiment import validate_reference_corpus
 from ielts_judge.panda.Corpus import Corpus, validate_record, vector
 
 def build_corpus(train: Any, experiment: Any, generation_directory: Any, output: Any, profile: Any, encoder: Any, *, batch_size: int=32) -> Any:
-    """Build corpus.
+    """Build and verify a PANDA corpus from full-train generation output.
+
+    Write records.jsonl and manifest.json into a new directory. Each training
+    essay must have a saved completion. Failed completions are kept verbatim.
 
     Args:
-        train (Any): Train used by this operation.
-        experiment (Any): Experiment used by this operation.
-        generation_directory (Any): Generation directory used by this operation.
-        output (Any): Output used by this operation.
-        profile (Any): Profile used by this operation.
-        encoder (Any): Encoder used by this operation.
-        batch_size (int): Batch size used by this operation.
+        train (Any): DataFrame containing the complete reference train split.
+        experiment (Any): Experiment manifest identifying the expected train split.
+        generation_directory (Any): Full generation run with its manifest and responses.
+        output (Any): New corpus directory. It must not already exist.
+        profile (Any): Pinned embedding profile used for the corpus.
+        encoder (Any): Encoder with that profile, returning embeddings and token lengths.
+        batch_size (int): Positive number of essays per encoding batch.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Verified corpus manifest with the release ID, provenance and record counts.
+
+    Raises:
+        FileExistsError: The output directory already exists.
+        ValueError: Generation, encoder or records do not match the expected corpus.
     """
     positive_int(batch_size, "batch_size")
     generation_directory, output = Path(generation_directory), Path(output)

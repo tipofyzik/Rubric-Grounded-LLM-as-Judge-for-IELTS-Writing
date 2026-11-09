@@ -30,13 +30,13 @@ from offline_research.panda.Generation import HFInsightGenerator, run_insights
 
 
 def data(prepared: Any) -> Any:
-    """Data.
+    """Load the reference train split and its experiment manifest.
 
     Args:
-        prepared (Any): Prepared used by this operation.
+        prepared (Any): Directory of the prepared dataset release.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: (Train DataFrame, experiment manifest).
     """
     train, test, _ = load_prepared(prepared)
     _, experiment = prepare_experiment(train, test)
@@ -44,13 +44,16 @@ def data(prepared: Any) -> Any:
 
 
 def rpc_from_env(current_arguments: Any) -> Any:
-    """Rpc from env.
+    """Create a PANDA RPC client using process environment settings.
 
     Args:
-        current_arguments (Any): Current arguments used by this operation.
+        current_arguments (Any): Parsed options naming the URL and key environment variables.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: SupabaseRPC configured for the supplied credentials.
+
+    Raises:
+        ValueError: A required variable is missing or invalid.
     """
     from ielts_judge.Database import SupabaseRPC
     values = [os.environ.get(name) for name in (current_arguments.url_env, current_arguments.key_env)]
@@ -60,15 +63,18 @@ def rpc_from_env(current_arguments: Any) -> Any:
 
 
 def verify_rpc(corpus: Any, rpc: Any, *, query_count: int=5) -> dict[str, Any]:
-    """Compare true RPC and local cosine on identical saved vectors, with numerical tie tolerance.
+    """Compare remote matches with local cosine search over the same saved vectors.
 
     Args:
-        corpus (Any): Corpus used by this operation.
-        rpc (Any): Rpc used by this operation.
-        query_count (int): Query count used by this operation.
+        corpus (Any): Verified local corpus used as the comparison reference.
+        rpc (Any): Client authorized to search the same corpus release.
+        query_count (int): Number of saved queries to select deterministically.
 
     Returns:
-        dict[str, Any]: Named result fields and metadata produced by this operation.
+        dict[str, Any]: Corpus ID, configured reference count and evidence for each query.
+
+    Raises:
+        ValueError: Remote neighbors, similarity or reference data differ from the local corpus.
     """
     from ielts_judge.Database import ReferenceRetriever, retrieval_k
     reference_count = retrieval_k()
@@ -76,23 +82,22 @@ def verify_rpc(corpus: Any, rpc: Any, *, query_count: int=5) -> dict[str, Any]:
     matrix = np.asarray([row["embedding"] for row in records], dtype=np.float32)
     profile = corpus.manifest["embedding"]
     class SavedEncoder:
-        """Manage saved encoder through the operations defined by this component."""
+        """Expose the selected saved embedding through the query encoder interface."""
         def __init__(self) -> None:
-            """Initialize this component's settings and collaborators.
-
-            Returns:
-                None: This operation returns no value.
-            """
+            """Keep the corpus profile and wait for a query row to be selected."""
             self.profile = profile
             self.row = None
         def encode(self, texts: Any) -> Any:
-            """Encode.
+            """Return the selected essay's stored vector and token count.
 
             Args:
-                texts (Any): Texts used by this operation.
+                texts (Any): One-element list containing the selected essay text.
 
             Returns:
-                Any: The computed result for the supplied inputs.
+                Any: (Single-row embedding array, one-element token length list).
+
+            Raises:
+                ValueError: The input differs from the selected essay.
             """
             if self.row is None or texts != [self.row["essay"]]:
                 raise ValueError("Verification requires the selected saved essay")
@@ -126,13 +131,16 @@ def verify_rpc(corpus: Any, rpc: Any, *, query_count: int=5) -> dict[str, Any]:
 
 
 def main(command_arguments: Any=None) -> Any:
-    """Parse command options and execute this component's command-line operation.
+    """Build, inspect or query a PANDA corpus from the command line.
+
+    The ingest command writes the corpus to Supabase. Query and verify-rpc
+    read the remote corpus and save their results locally.
 
     Args:
-        command_arguments (Any): Explicit CLI arguments; None reads the process argument list.
+        command_arguments (Any): Command-line argument strings, or None to use sys.argv.
 
     Returns:
-        Any: The computed result for the supplied inputs.
+        Any: Result dictionary for the selected command, also printed as JSON.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
