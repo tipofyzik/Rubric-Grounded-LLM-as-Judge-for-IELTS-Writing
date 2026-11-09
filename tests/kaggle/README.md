@@ -1,10 +1,8 @@
-# Kaggle
+# Kaggle tests
 
-Preserve notebook bootstrap and research adapter regression checks. Windows can skip the directory-symlink scenario when symlink privileges are unavailable.
+These tests run locally with small fixtures.
 
-| File | Responsibility |
-|---|---|
-| [TestKaggleNotebook.py](TestKaggleNotebook.py) | Exercise the shipped notebook cells locally without downloading model weights. |
-| [TestLLMResponseObtainer.py](TestLLMResponseObtainer.py) | Check local token handling and response persistence without downloading a model. |
+- [`TestKaggleNotebook.py`](TestKaggleNotebook.py) checks that the legacy notebook loads its input bundle and writes the expected files.
+- [`TestLLMResponseObtainer.py`](TestLLMResponseObtainer.py) checks how the notebook code handles model access, requests and saved replies.
 
-[Documentation catalogue](../../docs/README.md)
+[Kaggle notebooks](../../code/offline_research/notebooks/README.md)

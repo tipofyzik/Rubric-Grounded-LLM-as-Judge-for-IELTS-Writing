@@ -1,11 +1,7 @@
-# Shared
+# Shared code
 
-Provide the stable scoring core and safe resources used by public, local and research callers. Dependencies point into this block. Nothing here should import public_demo, local_backup or offline_research.
+Both apps use the same scoring engine and Gradio UI. The research tools reuse the scoring code for model comparisons.
 
-| File | Responsibility |
-|---|---|
-| [config.yaml](config.yaml) | Configuration, dependency or supporting source input. |
-| [paths.yaml](paths.yaml) | Configuration, dependency or supporting source input. |
-| [requirements.txt](requirements.txt) | Configuration, dependency or supporting source input. |
-
-[Documentation catalogue](../../docs/README.md)
+- [`ielts_judge/`](ielts_judge/README.md) contains the scoring engine, reference search and Gradio UI.
+- [`resources/`](resources/README.md) contains the rubric, demo examples and UI text.
+- [`config.yaml`](config.yaml) sets the number of examples to retrieve. [`paths.yaml`](paths.yaml) sets the locations of datasets and model files.

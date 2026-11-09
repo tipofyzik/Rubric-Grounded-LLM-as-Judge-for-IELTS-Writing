@@ -1,19 +1,19 @@
-# Notebooks
+# Kaggle notebooks
 
-Store research notebook templates and legacy bootstrap tooling. Build a new matching ZIP/manifest/notebook after source changes; a new ZIP must not be paired with an old pinned notebook. No new GPU runs are part of the engineering release.
+Build the notebook and its input files together before importing it into Kaggle.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | Offline research notebooks workflows. |
-| [AESTraining.ipynb](AESTraining.ipynb) | Configuration, dependency or supporting source input. |
-| [BuildBundle.py](BuildBundle.py) | Build the Kaggle runtime ZIP from shared code and a verified dataset release. |
-| [ExportEvaluationResults.ipynb](ExportEvaluationResults.ipynb) | Configuration, dependency or supporting source input. |
-| [KaggleNotebook.ipynb](KaggleNotebook.ipynb) | Configuration, dependency or supporting source input. |
-| [ModelEvaluation.ipynb](ModelEvaluation.ipynb) | Configuration, dependency or supporting source input. |
-| [ModelEvaluationConfig.yaml](ModelEvaluationConfig.yaml) | Configuration, dependency or supporting source input. |
-| [ModelEvaluationModels.yaml](ModelEvaluationModels.yaml) | Configuration, dependency or supporting source input. |
-| [PandaGeneration.ipynb](PandaGeneration.ipynb) | Configuration, dependency or supporting source input. |
-| [RunChecks.py](RunChecks.py) | Prepare a small Kaggle fixture, rebuild its ZIP and run local notebook checks. |
-| [RunConfig.yaml](RunConfig.yaml) | Configuration, dependency or supporting source input. |
+| Task | Build command | Output from the notebook |
+| --- | --- | --- |
+| [Train the essay scorer](AESTraining.ipynb) | `python Manage.py research bundle-aes` | Model weights and scores on the test set |
+| [Generate PANDA notes](PandaGeneration.ipynb) | `python Manage.py research bundle-panda` | Notes explaining the scores of training essays |
+| [Compare scoring methods](ModelEvaluation.ipynb) | `python Manage.py research bundle-evaluation` | Predictions, metrics and charts |
 
-[Documentation catalogue](../../../docs/README.md)
+## Run on Kaggle
+
+1. Run the build command from the repository root with the [research dependencies](../requirements.txt) and the prepared dataset in place. Model comparison also needs the trained essay scorer, the reference set and `docs/model_evaluation_runbook.md` from the full research checkout.
+2. Import the generated notebook into Kaggle. Upload its matching ZIP to a private Kaggle Dataset and attach the dataset with **Add Input**. For model comparison, upload `ModelEvaluationBundleManifest.json` alongside the ZIP.
+3. Enable a GPU and internet access for model runs. Follow the notebook cells and download the results from `/kaggle/working`.
+
+[ExportEvaluationResults.ipynb](ExportEvaluationResults.ipynb) exports a saved evaluation. The [legacy notebook](KaggleNotebook.ipynb) covers fine-tuning, inference and reporting. Build its input ZIP with `python Manage.py research bundle-legacy`.
+
+[Kaggle Docs](https://www.kaggle.com/docs/notebooks) · [Evaluation report](../../../docs/model_evaluation_report.md)

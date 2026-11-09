@@ -1,20 +1,13 @@
-# Ielts Judge
+# Scoring engine
 
-Own scoring contracts, prompts/parser, model registry, database reads and localized UI. ScoringRuntime.py wires loaded components; Scoring.py owns one bounded request.
+Start at [`Scoring.py`](Scoring.py) to follow a submission. It gets a first estimate, looks up similar essays, and calls the judge. [`Prompts.py`](Prompts.py) builds the prompt and [`Scores.py`](Scores.py) reads and validates the four scores.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | Research code for rubric-grounded IELTS writing evaluation. |
-| [Access.py](Access.py) | Read only user runtime settings; source distributions never carry credentials. |
-| [Criteria.py](Criteria.py) | Shared IELTS criterion definitions loaded from the project resource file. |
-| [Database.py](Database.py) | Supabase HTTPS/RPC transport, idempotent corpus ingestion and typed retrieval. |
-| [Localization.py](Localization.py) | Application UI text; language selection belongs to each browser session. |
-| [ModelRegistry.py](ModelRegistry.py) | Approved judge profiles; no model loading or application startup on import. |
-| [Paths.py](Paths.py) | Load project filesystem locations from the root paths.yaml file. |
-| [Prompts.py](Prompts.py) | One Task 2 inference prompt shared by serving and research callers. |
-| [Scores.py](Scores.py) | Public judge scores with exact fields and bounded format tolerance. |
-| [Scoring.py](Scoring.py) | UI-independent scoring orchestration with one bounded prompt/judge/parser chain. |
-| [ScoringRuntime.py](ScoringRuntime.py) | Explicit startup wiring for accepted AES/corpus releases; no loading on import. |
-| [Ui.py](Ui.py) | Multilingual Gradio presentation of the UI-independent scoring service. |
+| Part | What it does |
+| --- | --- |
+| [`aes/`](aes/README.md) | Estimates scores from the essay text |
+| [`Database.py`](Database.py) and [`panda/`](panda/README.md) | Search for similar essays and read their scores and notes |
+| [`llm/`](llm/README.md) | Loads and runs the judge model |
+| [`Ui.py`](Ui.py) and [`Localization.py`](Localization.py) | Build the Gradio form and load its translations |
+| [`data/`](data/README.md) | Reads the dataset and selects essays for experiments |
 
-[Documentation catalogue](../../../docs/README.md)
+[Scoring flow](../../../docs/guides/02ScoringFlow.md)

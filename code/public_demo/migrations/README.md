@@ -1,10 +1,8 @@
-# Migrations
+# Supabase migrations
 
-Migration 004 creates the corpus schema/RLS/RPC; 005 adds raw text insights and updates RPC compatibility. A new database needs both in order and a separate corpus import. Existing production migrations are not rerun during deployment.
+Run these scripts in order when setting up an empty Supabase database.
 
-| File | Responsibility |
-|---|---|
-| [004_panda_corpus.sql](004_panda_corpus.sql) | Configuration, dependency or supporting source input. |
-| [005_panda_text_insights.sql](005_panda_text_insights.sql) | Configuration, dependency or supporting source input. |
+1. [`004_panda_corpus.sql`](004_panda_corpus.sql) creates the reference tables, access rules and search function.
+2. [`005_panda_text_insights.sql`](005_panda_text_insights.sql) adds the original model notes to the database and search results.
 
-[Documentation catalogue](../../../docs/README.md)
+Then import the reference essays. See [Deployment](../../../docs/guides/05Deployment.md).

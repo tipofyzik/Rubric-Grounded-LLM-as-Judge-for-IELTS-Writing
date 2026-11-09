@@ -1,14 +1,8 @@
-# Tools
+# Build tools
 
-Build matching research or historical probe source bundles. Packaging does not execute training or judge inference. Each generated notebook pins the matching source/data manifest.
+- [`BuildAesKaggle.py`](BuildAesKaggle.py) prepares a notebook and dataset for training the essay scorer.
+- [`BuildPandaKaggle.py`](BuildPandaKaggle.py) prepares a notebook and dataset for generating PANDA notes.
+- [`BuildEvaluationKaggle.py`](BuildEvaluationKaggle.py) packages the notebook, dataset, scorer and reference set for comparing models.
+- [`PromptImage.py`](PromptImage.py) draws figures for the research write-up.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | Standalone visual tools used with the research artifacts. |
-| [BuildAesKaggle.py](BuildAesKaggle.py) | Build a matching AES notebook and verified prepared-data snapshot, without training. |
-| [BuildEvaluationKaggle.py](BuildEvaluationKaggle.py) | Create a NEW verified evaluation bundle and matching notebook; no uploads. |
-| [BuildPandaKaggle.py](BuildPandaKaggle.py) | Package PANDA generation code, verified data and a hash-pinned Kaggle notebook. |
-| [BuildStage1Space.py](BuildStage1Space.py) | Build an allowlisted Space probe using the current shared Stage 1 source. |
-| [PromptImage.py](PromptImage.py) | Python package marker. |
-
-[Documentation catalogue](../../../docs/README.md)
+[Kaggle instructions](../notebooks/README.md)

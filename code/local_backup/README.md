@@ -1,13 +1,23 @@
-# Local Backup
+# Local app
 
-Run AES/BGE on local CPU, retrieve from Supabase and call the matching hosted judge. App.py and Score.py share Runtime.py and the common ScoringService. This backup requires network services.
+Run the Gradio app or score essays from the terminal. Your machine makes the first score estimate and prepares the search query. Supabase finds a similar essay, and a Hugging Face Space runs Qwen.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | IELTS local_backup component. |
-| [App.py](App.py) | Launch the local IELTS demo with the accepted hybrid runtime. |
-| [requirements.txt](requirements.txt) | Configuration, dependency or supporting source input. |
-| [Runtime.py](Runtime.py) | Local hybrid startup and hosted judge transport, shared by CLI and UI. |
-| [Score.py](Score.py) | Run the accepted scoring service once, without saving submission text. |
+## Run
 
-[Documentation catalogue](../../docs/README.md)
+After [setting up the local app](../../docs/guides/04Installation.md), run this from the repository root and open [localhost:7860](http://127.0.0.1:7860).
+
+```sh
+python Manage.py local
+```
+
+To score a question and essay from two text files, run this instead.
+
+```sh
+python Manage.py local score --task-file question.txt --essay-file essay.txt
+```
+
+## Code
+
+- [`App.py`](App.py) starts Gradio.
+- [`Score.py`](Score.py) reads the text files and prints the scores.
+- [`Runtime.py`](Runtime.py) loads the local models and connects to the hosted services.

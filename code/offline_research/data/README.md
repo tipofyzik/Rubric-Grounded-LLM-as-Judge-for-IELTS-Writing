@@ -1,16 +1,8 @@
-# Data
+# Prepare the dataset
 
-Own source ingestion, profile selection, analysis and prepared-release writing. Original source content and labels are retained according to the documented validation/deduplication rules.
+[`PrepareData.py`](../PrepareData.py) is the entry point. It prepares a common dataset from Chillies and Writing9 for training and evaluation.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | Offline research data workflows. |
-| [Analysis.py](Analysis.py) | Audit and plots for the common Parquet schema. |
-| [DatasetTransformer.py](DatasetTransformer.py) | One offline entry point for Chillies extraction and Writing9 preparation. |
-| [Profiles.py](Profiles.py) | Globally disjoint criterion profiles shared by preparation and legacy analysis. |
-| [RawDataAnalyzer.py](RawDataAnalyzer.py) | Python package marker. |
-| [Runtime.py](Runtime.py) | Explicit adapters from verified dataset rows to model/evaluation inputs. |
-| [Selection.py](Selection.py) | Deterministic profile quotas applied after source validation and deduplication. |
-| [Writer.py](Writer.py) | Offline writer workflow; shared runtime owns read contracts. |
-
-[Documentation catalogue](../../../docs/README.md)
+- [`DatasetTransformer.py`](DatasetTransformer.py) reads and cleans the source essays.
+- [`Profiles.py`](Profiles.py) defines score groups. [`Selection.py`](Selection.py) chooses essays using those groups.
+- [`Writer.py`](Writer.py) saves the train and test splits. [`Runtime.py`](Runtime.py) turns those rows into model inputs.
+- [`Analysis.py`](Analysis.py) and [`RawDataAnalyzer.py`](RawDataAnalyzer.py) summarize the prepared and source data.

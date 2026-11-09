@@ -1,17 +1,11 @@
-# Panda
+# Generate PANDA notes
 
-Own optional generation of explanations for known source scores, corpus construction/comparison and research retrieval evaluation. This differs from assigning scores to a new essay.
+PANDA asks a language model to explain the existing scores on training essays. When the app scores a new essay, it can give the judge the notes from a similar one.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | Offline research panda workflows. |
-| [Comparison.py](Comparison.py) | A resumable paired prompt experiment; this selection is never a reference corpus. |
-| [Contracts.py](Contracts.py) | Full-train, resumable PANDA generation with one atomic result per essay ID. |
-| [Corpus.py](Corpus.py) | Offline corpus workflow; shared runtime owns read contracts. |
-| [Generation.py](Generation.py) | Offline generation workflow; shared runtime owns read contracts. |
-| [InsightGenerator.py](InsightGenerator.py) | Generate PANDA criterion insights from expert-scored essays. |
-| [Panda.py](Panda.py) | Compatibility facade combining PANDA generation and retrieval workflows. |
-| [PandaModel.py](PandaModel.py) | Shared local Hugging Face model loading for PANDA components. |
-| [RetrievalEvaluator.py](RetrievalEvaluator.py) | Retrieve PANDA insights and evaluate essays with a local judge. |
+Start at [`ManageCorpus.py`](../ManageCorpus.py) to generate the notes or build the reference set.
 
-[Documentation catalogue](../../../docs/README.md)
+- [`InsightGenerator.py`](InsightGenerator.py) builds prompts for the notes. [`Generation.py`](Generation.py) runs them in batches.
+- [`Corpus.py`](Corpus.py) joins the saved notes to the scored essays and prepares the reference set for search.
+- [`RetrievalEvaluator.py`](RetrievalEvaluator.py) tests scoring with retrieved examples.
+
+[Generation settings](../resources/README.md) · [Kaggle](../notebooks/README.md)

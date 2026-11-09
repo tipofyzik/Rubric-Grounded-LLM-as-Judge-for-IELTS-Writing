@@ -1,11 +1,8 @@
-# Aes
+# Train the essay scoring model
 
-Own optional AES training/evaluation. The demo loads the already accepted full-train bundle from shared inference code.
+Start at [`TrainAes.py`](../TrainAes.py) to train the model on scored essays or score an essay with a saved model.
 
-| File | Responsibility |
-|---|---|
-| [__init__.py](__init__.py) | Offline research aes workflows. |
-| [RegressorEvaluator.py](RegressorEvaluator.py) | AES entry points using the same integer metrics and reports as judge models. |
-| [Training.py](Training.py) | Full prepared-train AES fitting and ID-aligned evaluation exports. |
+- [`Training.py`](Training.py) fits the model and saves its weights and predictions.
+- [`RegressorEvaluator.py`](RegressorEvaluator.py) compares the predictions with the dataset scores.
 
-[Documentation catalogue](../../../docs/README.md)
+[Kaggle training](../notebooks/README.md)

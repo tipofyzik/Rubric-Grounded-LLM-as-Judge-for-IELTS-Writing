@@ -1,11 +1,8 @@
-# Resources
+# App resources
 
-Store the rubric, original synthetic examples, pinned model registry and translated interface strings. These are safe source inputs; no account credentials, weights or user essays belong here.
-
-| File | Responsibility |
-|---|---|
-| [demo_examples.json](demo_examples.json) | Configuration, dependency or supporting source input. |
-| [ielts_criteria.yaml](ielts_criteria.yaml) | Configuration, dependency or supporting source input. |
-| [model_registry.yaml](model_registry.yaml) | Configuration, dependency or supporting source input. |
-
-[Documentation catalogue](../../../docs/README.md)
+| To change | Edit |
+| --- | --- |
+| The examples in the demo | [`demo_examples.json`](demo_examples.json) |
+| The rubric in the scoring prompt | [`ielts_criteria.yaml`](ielts_criteria.yaml) |
+| The judge model and its settings | [`model_registry.yaml`](model_registry.yaml) |
+| Labels and messages | [`locales/`](locales/README.md) |
