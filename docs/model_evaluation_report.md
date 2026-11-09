@@ -14,15 +14,15 @@ it does not establish that rubric or retrieval context cannot help other models.
 All 9810 Qwen jobs and 1635 AES outputs are valid. Common-valid N is 1635.
 There is one repeat, so between-run repeatability and STD are unmeasured.
 
-| Configuration | Macro MAE | Macro QWK | Exact accuracy | Within-one accuracy |
-|---|---:|---:|---:|---:|
-| AES | 0.979511 | 0.607192 | 37.37% | 74.95% |
-| Base | 1.724312 | 0.026655 | 15.57% | 49.54% |
-| Rubric | 2.675688 | 0.000000 | 14.51% | 24.65% |
-| PANDA | 1.738991 | 0.092408 | 21.10% | 50.69% |
-| Rubric + PANDA | 1.742508 | 0.090790 | 21.09% | 50.61% |
-| PANDA + AES | 1.016361 | 0.595384 | 35.81% | 73.67% |
-| Rubric + PANDA + AES | 0.981040 | 0.606128 | 37.34% | 74.91% |
+| Configuration | Macro QWK | Macro RMSE | Macro MAE | Exact accuracy | Within-one accuracy |
+|---|---:|---:|---:|---:|---:|
+| AES | 0.607192 | 1.390925 | 0.979511 | 37.37% | 74.95% |
+| Base | 0.026655 | 2.127120 | 1.724312 | 15.57% | 49.54% |
+| Rubric | 0.000000 | 3.161052 | 2.675688 | 14.51% | 24.65% |
+| PANDA | 0.092408 | 2.234527 | 1.738991 | 21.10% | 50.69% |
+| Rubric + PANDA | 0.090790 | 2.239002 | 1.742508 | 21.09% | 50.61% |
+| PANDA + AES | 0.595384 | 1.426560 | 1.016361 | 35.81% | 73.67% |
+| Rubric + PANDA + AES | 0.606128 | 1.393129 | 0.981040 | 37.34% | 74.91% |
 
 Macro averages combine four criterion metrics, not an overall IELTS Writing band.
 The 6540 criterion scores per configuration share the same 1635 essay IDs.
@@ -83,8 +83,3 @@ private/local run is required and is not distributed by a clean Git checkout.
 The test pool is previously used, heavily Writing9-dominated and has shared
 train/test questions. Source labels are not certified examiner annotations.
 See the protocol for the complete data, AES and corpus limitations.
-
-Repeatability IDs/settings and the custom robustness cases await the user's
-choice of experiment sizes. Their runs and analysis, final README review,
-release/tag and demo video remain open. The current negative baseline result
-is retained regardless of those future outcomes.

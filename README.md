@@ -16,23 +16,23 @@ A small language model judges one essay at a time (Zheng et al., 2023). To measu
 2. **PANDA notes.** The original PANDA method retrieves explanations of an expert model’s preferences (Liu et al., 2024). In this adaptation, the notes start from scores already recorded in the training dataset. For each criterion, the prompt asks for evidence that supports the assigned band and for the strengths and weaknesses that distinguish it from its neighboring bands. The judge receives the scores and notes from a similar training essay.
 3. **Preliminary scores.** A separate RoBERTa-based essay scorer estimates the four scores for the new essay from its text alone. The judge uses those estimates as guidance when making its own assessment.
 
-## What changed
+## Demo verification
 
-The earlier local workflow started from a prepared environment. `Manage.py` now gives you one place to install dependencies, fetch the model and reference files, and start the app.
-
-The hosted demo was tested with new essays, simultaneous requests and a restart. A separate check scored an essay through the local app. [Demo verification](docs/DemoVerification.md)
+The hosted demo was checked with new essays, simultaneous requests and a restart. The checks also covered scoring through the local app. [Demo verification](docs/DemoVerification.md)
 
 ## Results
 
-On Kaggle, we tested six prompt variants with Qwen2.5-1.5B-Instruct, the model used in the demo. Each variant ran once on the same 1,635 essays. Mean absolute error is averaged across the four criteria.
+On Kaggle, we tested six prompt variants with Qwen2.5-1.5B-Instruct, the model used in the demo. Each variant ran once on the same 1,635 essays. The metrics are averaged across the four criteria.
 
-| Scoring setup | Mean absolute error (bands) ↓ |
-| --- | ---: |
-| Qwen with the base prompt | 1.724 |
-| Qwen with rubric, PANDA notes and preliminary scores | 0.981 |
-| Essay scoring model alone | 0.980 |
+| Scoring setup | QWK ↑ | RMSE ↓ | MAE ↓ |
+| --- | ---: | ---: | ---: |
+| Qwen with the base prompt | 0.027 | 2.127 | 1.724 |
+| Qwen with rubric, PANDA notes and preliminary scores | 0.606 | 1.393 | 0.981 |
+| Essay scoring model alone | 0.607 | 1.391 | 0.980 |
 
-The full prompt reproduced 6,536 of the essay model’s 6,540 criterion scores. [Evaluation report](docs/model_evaluation_report.md)
+Quadratic weighted kappa (QWK) measures agreement on the ordered band scale. RMSE gives more weight to large errors. Both RMSE and MAE are in band points.
+
+The full prompt reproduced 6,536 of the essay model’s 6,540 criterion scores. [Full results](docs/model_evaluation_report.md)
 
 ## Install and run locally
 

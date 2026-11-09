@@ -1,16 +1,10 @@
-# Demo engineering verification
+# Demo verification
 
-Verified on 6 November 2026. This is an engineering release prepared in the working tree for owner review and GitHub publication. Additional research experiments remain deferred.
+These checks were run on 6 November 2026 for the hosted demo and local app.
 
 ## Source and hosting
 
-The project uses the separated public demo, local backup, shared core and offline research layout. Python module filenames use PascalCase; conventional package markers remain `__init__.py`. The root command interface is `python Manage.py`.
-
-The [public demo](https://tipofyzik-ielts-writing-evaluator.hf.space) runs [HF revision d93c3dcd304b0906684ee512904ba88cd596514d](https://huggingface.co/spaces/tipofyzik/ielts-writing-evaluator/commit/d93c3dcd304b0906684ee512904ba88cd596514d). Its deployment source digest is `0ff4d47086c6d19a223ec9d929fcee4a6b7070b067a9b1a899d3a0f0b7ded678`. The previous accepted revision is retained for recovery. Existing private AES/corpus artifacts, Supabase and Space hardware were reused.
-
-GitHub changes have not been pushed by the agent. Remote CI for the final commit becomes evidence after the owner publishes it; the prepared workflow runs portable contract checks.
-
-The source distribution includes current guides and final baseline/acceptance summaries. Historical stage reports, old runbooks, inventory audits and refactoring notes are retained locally and excluded from GitHub/ZIP. Standard Python package markers are included with the source.
+The public demo was checked at Hugging Face revision `d93c3dcd304b0906684ee512904ba88cd596514d`. Its deployment source digest was `0ff4d47086c6d19a223ec9d929fcee4a6b7070b067a9b1a899d3a0f0b7ded678`. [Tested build](https://huggingface.co/spaces/tipofyzik/ielts-writing-evaluator/commit/d93c3dcd304b0906684ee512904ba88cd596514d)
 
 ## Automated and distribution checks
 
@@ -50,8 +44,4 @@ The 89 portable checks are a subset, not 89 additional tests. `Any` annotations 
 
 Detailed JSON, source manifests, logs and the previous deployment snapshot are retained locally under `results/demo/` and `.cache/demo-completion/`. These directories are not part of the public source distribution. Original code and local inputs are retained in the migration backup under TEMP.
 
-## Remaining owner actions
-
-Review the working tree and documentation, publish the selected GitHub commit, confirm its remote CI result and create the desired release/tag. A portfolio video is optional follow-up work. New model benchmarks, repeatability and robustness are outside this engineering iteration. Existing baseline quality limitations remain documented in the [model report](model_evaluation_report.md).
-
-[Documentation catalogue](README.md)
+[Model evaluation](model_evaluation_report.md) · [Documentation](README.md)

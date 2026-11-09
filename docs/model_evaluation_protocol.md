@@ -131,7 +131,3 @@ inside Essay, and short/long boundary inputs. Modified inputs do not inherit
 ground-truth labels automatically; use paired behavioural analysis unless an
 additional expert annotation is supplied. Correct input rejection is a recorded
 outcome. Freeze these addenda before running either experiment.
-
-Final stage-8 closure also requires the returned results and analysis, final
-documentation, release/tag and demo video. This baseline protocol alone does not
-close those remaining items.

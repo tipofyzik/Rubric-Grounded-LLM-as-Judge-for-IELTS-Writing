@@ -13,7 +13,7 @@ The application restores hash-verified private AES/corpus artifacts at startup. 
 
 For a new database only: apply migration 004 then 005, then separately import the compatible corpus using the offline import secret. Existing accepted Supabase installations already have these migrations; routine deployment does not repeat them.
 
-The local adapter depends on the preserved `stage5_judge` endpoint and matching tokenizer profile. Verify local fallback after changing the public runtime. A deployment failure should be diagnosed against saved source/revision evidence; use the saved previous revision as the rollback source without changing data or artifact versions blindly.
+The local app uses the Space’s judge and must use the matching tokenizer. After updating the Space, verify that an essay can still be scored from the local app. If the deployment fails, check the saved build information and use the previous verified revision for rollback.
 
 
 [Documentation catalogue](../README.md)
