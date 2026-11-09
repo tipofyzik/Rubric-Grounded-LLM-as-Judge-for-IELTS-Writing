@@ -4,7 +4,7 @@ This project studies how prompt engineering can improve small language models (S
 
 Try one of three sample essays or submit your own question and essay. The demo gives separate estimates from 0 to 9 for Task Response, Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy.
 
-[Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install-and-run-locally) · [Kaggle](code/offline_research/notebooks/README.md) · [Docs](docs/README.md)
+[Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install-and-run-locally) · [Architecture](#architecture) · [Kaggle](code/offline_research/notebooks/README.md) · [Docs](docs/README.md)
 
 ![The demo showing four scores for a sample essay](docs/media/Demo.jpg)
 
@@ -15,6 +15,12 @@ A small language model judges one essay at a time (Zheng et al., 2023). To measu
 1. **IELTS rubric.** A condensed version of the official Task 2 band descriptors tells the judge what each band means for the four criteria.
 2. **PANDA notes.** The original PANDA method retrieves explanations of an expert model’s preferences (Liu et al., 2024). In this adaptation, the notes start from scores already recorded in the training dataset. For each criterion, the prompt asks for evidence that supports the assigned band and for the strengths and weaknesses that distinguish it from its neighboring bands. The judge receives the scores and notes from a similar training essay.
 3. **Preliminary scores.** A separate RoBERTa-based essay scorer estimates the four scores for the new essay from its text alone. The judge uses those estimates as guidance when making its own assessment.
+
+## Architecture
+
+The hosted demo and local app share the same scoring engine. Both look up reference examples in Supabase and use the judge on Hugging Face. The local app makes the first score estimate on your machine.
+
+[Architecture guide](docs/guides/01Architecture.md) · [Scoring flow](docs/guides/02ScoringFlow.md)
 
 ## Demo verification
 
