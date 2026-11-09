@@ -6,7 +6,7 @@ Score IELTS Writing Task 2 essays with a rubric-grounded Qwen judge. The demo re
 
 The question and essay are sent to Hugging Face for scoring. [Data handling](docs/guides/Troubleshooting.md)
 
-![The demo showing four scores for a sample essay](docs/media/Demo.jpg)
+[Demo video](docs/media/Demo.webm)
 
 ## Install
 

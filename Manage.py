@@ -61,7 +61,7 @@ def source_archive(destination: Path) -> int:
     destination = Path(destination).resolve()
     filenames = (
         "Manage.py", "RuntimeAssets.py", "README.md", "LICENSE", ".env.example",
-        "requirements.txt", "requirements-dev.txt", "pyrightconfig.json",
+        "requirements.txt", "requirements-dev.txt", "pyrightconfig.json", "docs/media/Demo.webm",
     )
     files = [ROOT / filename for filename in filenames if (ROOT / filename).is_file()]
     excluded = {"__pycache__", ".cache", "artifacts", ".venv", ".runtime", ".pytest_cache", ".ruff_cache"}
