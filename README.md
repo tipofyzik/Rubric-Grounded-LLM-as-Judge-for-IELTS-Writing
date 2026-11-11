@@ -1,6 +1,8 @@
 # IELTS Writing Evaluator
 
-Score IELTS Writing Task 2 essays with a rubric-grounded Qwen judge. The demo returns four experimental criterion scores (integers from 0 to 9) and includes three sample essays. The interface supports English, Russian and German.
+Score IELTS Writing Task 2 essays with small language models (SLMs) guided by the IELTS rubric, PANDA preference adaptation, and preliminary scores from an automated essay scoring (AES) model. The system retrieves PANDA notes from similar training essays to guide the judge, including explanations of their assigned scores and differences from neighboring bands.
+
+The demo uses Qwen2.5-1.5B-Instruct and returns four experimental criterion scores (integers from 0 to 9). Other compatible models can be added through the model registry. The interface supports English, Russian and German and includes three sample essays.
 
 [Demo](https://tipofyzik-ielts-writing-evaluator.hf.space) · [Install](#install) · [Architecture](docs/guides/Architecture.md) · [Research](code/offline_research/README.md) · [Docs](docs/README.md)
 
