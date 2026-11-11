@@ -1,6 +1,6 @@
 # IELTS Writing Evaluator
 
-Score IELTS Writing Task 2 essays with small language models (SLMs) guided by the IELTS rubric, PANDA preference adaptation, and preliminary scores from an automated essay scoring (AES) model. The system retrieves PANDA notes from similar training essays to guide the judge, including explanations of their assigned scores and differences from neighboring bands.
+Score IELTS Writing Task 2 essays with small language models (SLMs) guided by the IELTS rubric, PANDA preference adaptation, and preliminary scores from an automated essay scoring (AES) model. To guide the judge, the system retrieves explanations of why similar essays in the training dataset received their assigned scores and why higher or lower bands were less appropriate.
 
 The demo uses Qwen2.5-1.5B-Instruct and returns four experimental criterion scores (integers from 0 to 9). Other compatible models can be added through the model registry. The interface supports English, Russian and German and includes three sample essays.
 
