@@ -8,7 +8,7 @@ The demo uses Qwen2.5-1.5B-Instruct and returns four experimental criterion scor
 
 The question and essay are sent to Hugging Face for scoring. [Data handling](docs/guides/Troubleshooting.md)
 
-[Demo video](docs/media/Demo.webm)
+[Demo video](https://github.com/user-attachments/assets/5b87b4cd-79ff-48aa-a073-9a02b07cc80e)
 
 ## Install
 
